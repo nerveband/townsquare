@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Everything that must pass before a commit is pushed or a release is cut.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+fail() { echo "✗ $*" >&2; exit 1; }
+step() { echo "• $*"; }
+
+step "gofmt"
+[ -z "$(gofmt -l cmd internal web tools 2>/dev/null)" ] || fail "gofmt needed: $(gofmt -l cmd internal web tools)"
+
+step "go vet"
+go vet ./...
+
+step "OpenAPI spec is generated and current"
+python3 tools/gen_openapi.py >/dev/null
+git diff --quiet -- internal/server/openapi.json || fail "openapi.json changed after regenerating; commit it (python3 tools/gen_openapi.py)"
+
+step "UI builds and web/dist is current"
+( cd web/ui && { [ -d node_modules ] || npm ci --silent; } && npm run build --silent >/dev/null 2>&1 ) || fail "UI build failed (cd web/ui && npm run build)"
+git diff --quiet -- web/dist || fail "web/dist changed after building; commit it"
+[ -z "$(git ls-files --others --exclude-standard web/dist)" ] || fail "web/dist has new files; commit them"
+
+step "go test"
+go test ./... >/dev/null
+
+step "no em dashes in source and docs"
+if git grep -I -n $'\u2014' -- ':!web/dist' ':!*.lock' ':!package-lock.json' ':!go.sum' >/dev/null; then
+  git grep -I -n $'\u2014' -- ':!web/dist' ':!package-lock.json' ':!go.sum' | head -5
+  fail "replace em dashes with commas, colons or parentheses"
+fi
+
+echo "✓ all checks passed"

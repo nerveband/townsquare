@@ -1,0 +1,8 @@
+bin/
+*.db
+*.db-*
+.townsquare/
+.DS_Store
+web/ui/node_modules/
+dist/
+.deploy.env

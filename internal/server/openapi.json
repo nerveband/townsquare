@@ -1,0 +1,4380 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Townsquare API",
+  "version": "1.0.0",
+  "description": "Schedule WhatsApp posts to groups, communities, channels and Status. Everything the web app can do. Read the agent guide at /api/v1/guide.md first. All changes are recorded in history and can be undone."
+ },
+ "servers": [
+  {
+   "url": "/api/v1"
+  }
+ ],
+ "security": [
+  {
+   "bearer": []
+  }
+ ],
+ "tags": [
+  {
+   "name": "Status",
+   "description": "Start here: connection, safe mode, your key's scope."
+  },
+  {
+   "name": "Posts",
+   "description": "Create, edit, schedule, pause, send now. Targets accept names."
+  },
+  {
+   "name": "Sends",
+   "description": "Individual occurrences on the calendar: list, move, copy, skip, deliveries."
+  },
+  {
+   "name": "Targets",
+   "description": "Groups, community announcement groups, channels, Status and yourself."
+  },
+  {
+   "name": "Media",
+   "description": "Upload by file or URL; converted for WhatsApp."
+  },
+  {
+   "name": "Tags",
+   "description": "Color labels for posts."
+  },
+  {
+   "name": "Clients",
+   "description": "Group posts and chats by client."
+  },
+  {
+   "name": "Sets",
+   "description": "Named lists of chats to add in one go."
+  },
+  {
+   "name": "History",
+   "description": "Who changed what; undo and redo."
+  },
+  {
+   "name": "Settings",
+   "description": "Time zone, safe mode, pacing, quiet hours."
+  },
+  {
+   "name": "Telegram",
+   "description": "Log in as your Telegram account and list your groups and channels."
+  },
+  {
+   "name": "Stats",
+   "description": "Engagement: reads, views, reactions, replies, shares and member growth for what Townsquare sent."
+  },
+  {
+   "name": "Keys",
+   "description": "API keys (admin scope)."
+  }
+ ],
+ "paths": {
+  "/status": {
+   "get": {
+    "tags": [
+     "Status"
+    ],
+    "summary": "Get status",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Status"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Connection, safe mode, today's count, time zone, and your key's scope. Call this first.",
+    "operationId": "get_status"
+   }
+  },
+  "/settings": {
+   "get": {
+    "tags": [
+     "Settings"
+    ],
+    "summary": "Get settings",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Settings"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "operationId": "get_settings"
+   },
+   "patch": {
+    "tags": [
+     "Settings"
+    ],
+    "summary": "Update settings",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Settings"
+       }
+      }
+     }
+    },
+    "operationId": "update_settings"
+   }
+  },
+  "/targets": {
+   "get": {
+    "tags": [
+     "Targets"
+    ],
+    "summary": "List targets",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Target"
+         }
+        }
+       }
+      },
+      "headers": {
+       "X-Total-Count": {
+        "description": "Matches before limit",
+        "schema": {
+         "type": "integer"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Name contains"
+     },
+     {
+      "name": "kind",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list: self,status,announce,group,channel,community"
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "allowed",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "true/false"
+     },
+     {
+      "name": "can_send",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "true to hide admin-only chats"
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
+      "name": "include_gone",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "operationId": "list_targets"
+   }
+  },
+  "/targets/refresh": {
+   "post": {
+    "tags": [
+     "Targets"
+    ],
+    "summary": "Refresh targets from WhatsApp",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Target"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "503": {
+      "$ref": "#/components/responses/E503"
+     }
+    },
+    "operationId": "refresh_targets_from_whatsapp"
+   }
+  },
+  "/targets/{jid}": {
+   "get": {
+    "tags": [
+     "Targets"
+    ],
+    "summary": "Get target",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Target"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "jid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "operationId": "get_target"
+   },
+   "patch": {
+    "tags": [
+     "Targets"
+    ],
+    "summary": "Update target",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Set client (null clears), star, or allowlist (admin).",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TargetPatch"
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "jid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "operationId": "update_target"
+   }
+  },
+  "/tags": {
+   "get": {
+    "tags": [
+     "Tags"
+    ],
+    "summary": "List tags",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Tag"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "operationId": "list_tags"
+   },
+   "post": {
+    "tags": [
+     "Tags"
+    ],
+    "summary": "Create tag",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TagInput"
+       }
+      }
+     }
+    },
+    "operationId": "create_tag"
+   }
+  },
+  "/tags/{id}": {
+   "patch": {
+    "tags": [
+     "Tags"
+    ],
+    "summary": "Update tag",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TagInput"
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "update_tag"
+   },
+   "delete": {
+    "tags": [
+     "Tags"
+    ],
+    "summary": "Delete tag",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "delete_tag"
+   }
+  },
+  "/clients": {
+   "get": {
+    "tags": [
+     "Clients"
+    ],
+    "summary": "List clients",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Client"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "operationId": "list_clients"
+   },
+   "post": {
+    "tags": [
+     "Clients"
+    ],
+    "summary": "Create client",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ClientInput"
+       }
+      }
+     }
+    },
+    "operationId": "create_client"
+   }
+  },
+  "/clients/{id}": {
+   "patch": {
+    "tags": [
+     "Clients"
+    ],
+    "summary": "Update client",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Partial update, including per-client quiet hours.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ClientInput"
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "update_client"
+   },
+   "delete": {
+    "tags": [
+     "Clients"
+    ],
+    "summary": "Delete client",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "delete_client"
+   }
+  },
+  "/sets": {
+   "get": {
+    "tags": [
+     "Sets"
+    ],
+    "summary": "List group sets",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Set"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "operationId": "list_group_sets"
+   },
+   "post": {
+    "tags": [
+     "Sets"
+    ],
+    "summary": "Create group set",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetInput"
+       }
+      }
+     }
+    },
+    "operationId": "create_group_set"
+   }
+  },
+  "/sets/{id}": {
+   "patch": {
+    "tags": [
+     "Sets"
+    ],
+    "summary": "Update group set",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetInput"
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "update_group_set"
+   },
+   "delete": {
+    "tags": [
+     "Sets"
+    ],
+    "summary": "Delete group set",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "delete_group_set"
+   }
+  },
+  "/media": {
+   "post": {
+    "tags": [
+     "Media"
+    ],
+    "summary": "Upload media",
+    "operationId": "upload_media",
+    "description": "Multipart field `file`, or JSON {\"url\": ..., \"kind\"?: image|video|voice|audio|document}. Converted for WhatsApp (ffmpeg).",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "file": {
+          "type": "string",
+          "format": "binary"
+         },
+         "kind": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "url": {
+          "type": "string"
+         },
+         "kind": {
+          "type": "string"
+         },
+         "name": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "url"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Media"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    }
+   }
+  },
+  "/media/{id}": {
+   "get": {
+    "tags": [
+     "Media"
+    ],
+    "summary": "Get media",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Media"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "get_media"
+   }
+  },
+  "/media/{id}/file": {
+   "get": {
+    "tags": [
+     "Media"
+    ],
+    "summary": "Download converted file",
+    "operationId": "media_file",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "The file"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    }
+   }
+  },
+  "/media/{id}/preview": {
+   "get": {
+    "tags": [
+     "Media"
+    ],
+    "summary": "JPEG preview",
+    "operationId": "media_preview",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "image/jpeg"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    }
+   }
+  },
+  "/posts": {
+   "get": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "List posts",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/PostSummary"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list"
+     },
+     {
+      "name": "tag_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "target",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "JID"
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Title or caption contains"
+     }
+    ],
+    "operationId": "list_posts"
+   },
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Create post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Targets may be names. Posts are drafts unless status is \"scheduled\", even with a time (the response then includes a notice).",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PostInput"
+       }
+      }
+     }
+    },
+    "operationId": "create_post"
+   }
+  },
+  "/posts/bulk": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Bulk update posts",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "One action on many posts, recorded as a single undoable change. tag/client: pass tag_id/client_id (null clears).",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BulkInput"
+       }
+      }
+     }
+    },
+    "operationId": "bulk_update_posts"
+   }
+  },
+  "/posts/preview": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Preview post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "valid": {
+           "type": "boolean"
+          },
+          "targets": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "next_sends": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Send"
+           }
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Validate, resolve targets and list the next sends. Saves nothing.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PostInput"
+       }
+      }
+     }
+    },
+    "operationId": "preview_post"
+   }
+  },
+  "/posts/{id}": {
+   "get": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Get post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Post"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "get_post"
+   },
+   "patch": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Update post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Partial update. For repeating posts set scope (one/future/all).",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PostPatch"
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "update_post"
+   },
+   "delete": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Delete post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "scope=one skips a single send; future stops the series from occ.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
+      "name": "scope",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "all",
+        "one",
+        "future"
+       ]
+      }
+     },
+     {
+      "name": "schedule_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
+      "name": "occ",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "operationId": "delete_post"
+   }
+  },
+  "/posts/{id}/sends": {
+   "get": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "List upcoming sends of a post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Send"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
+      "name": "n",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "list_upcoming_sends_of_a_post"
+   }
+  },
+  "/posts/{id}/send-now": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Send post now",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Adds a one-off send at the current minute; the send loop picks it up within 15 s. Safe mode still applies.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "send_post_now"
+   }
+  },
+  "/posts/{id}/duplicate": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Duplicate post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Creates a draft copy without times.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "duplicate_post"
+   }
+  },
+  "/posts/{id}/pause": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Pause post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "pause_post"
+   }
+  },
+  "/posts/{id}/resume": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Resume post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "resume_post"
+   }
+  },
+  "/sends": {
+   "get": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "List sends",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "sends": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Send"
+           }
+          },
+          "posts": {
+           "type": "object",
+           "additionalProperties": {
+            "$ref": "#/components/schemas/Post"
+           }
+          },
+          "media": {
+           "type": "object",
+           "additionalProperties": {
+            "$ref": "#/components/schemas/Media"
+           }
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "YYYY-MM-DD or RFC 3339"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "post_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "operationId": "list_sends"
+   }
+  },
+  "/sends/deliveries": {
+   "get": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "List deliveries of a send",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Delivery"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "schedule_id",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
+      "name": "occ",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "operationId": "list_deliveries_of_a_send"
+   }
+  },
+  "/sends/move": {
+   "post": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "Move send",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "scope=one moves only this send; all shifts the whole series.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SendRef"
+       }
+      }
+     }
+    },
+    "operationId": "move_send"
+   }
+  },
+  "/sends/copy": {
+   "post": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "Copy send",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Creates a new one-off post at `to`.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SendRef"
+       }
+      }
+     }
+    },
+    "operationId": "copy_send"
+   }
+  },
+  "/sends/skip": {
+   "post": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "Skip send",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SendRef"
+       }
+      }
+     }
+    },
+    "operationId": "skip_send"
+   }
+  },
+  "/changes": {
+   "get": {
+    "tags": [
+     "History"
+    ],
+    "summary": "List changes",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Change"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "operationId": "list_changes"
+   }
+  },
+  "/undo": {
+   "post": {
+    "tags": [
+     "History"
+    ],
+    "summary": "Undo",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Reverts the latest undoable change by anyone. Pass expect_change to be safe.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "expect_change": {
+          "type": "integer",
+          "description": "Only undo if this change is still the latest"
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "undo"
+   }
+  },
+  "/redo": {
+   "post": {
+    "tags": [
+     "History"
+    ],
+    "summary": "Redo",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WriteResult"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "operationId": "redo"
+   }
+  },
+  "/test-send": {
+   "post": {
+    "tags": [
+     "Posts"
+    ],
+    "summary": "Test send to yourself",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "503": {
+      "$ref": "#/components/responses/E503"
+     }
+    },
+    "description": "Sends now to your own chat only: WhatsApp Message yourself, or Telegram Saved Messages.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "caption": {
+          "type": "string"
+         },
+         "media": {
+          "type": "array",
+          "items": {
+           "type": "integer"
+          }
+         },
+         "platform": {
+          "type": "string",
+          "enum": [
+           "whatsapp",
+           "telegram"
+          ]
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "test_send_to_yourself"
+   }
+  },
+  "/telegram": {
+   "get": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Get Telegram status",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "operationId": "get_telegram_status"
+   }
+  },
+  "/telegram/login": {
+   "post": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Start Telegram QR login",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     },
+     "503": {
+      "$ref": "#/components/responses/E503"
+     }
+    },
+    "description": "Admin. Then show GET /telegram/qr.png and scan it in Telegram: Settings > Devices > Link Desktop Device.",
+    "operationId": "start_telegram_qr_login"
+   }
+  },
+  "/telegram/qr.png": {
+   "get": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Telegram login QR code",
+    "operationId": "telegram_qr",
+    "description": "Admin. PNG of the current login QR. It refreshes about every 30 seconds while a login is running.",
+    "responses": {
+     "200": {
+      "description": "image/png"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    }
+   }
+  },
+  "/telegram/password": {
+   "post": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Send Telegram two-step password",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "password": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "password"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "send_telegram_two-step_password"
+   }
+  },
+  "/telegram/logout": {
+   "post": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Log out of Telegram",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "operationId": "log_out_of_telegram"
+   }
+  },
+  "/telegram/refresh": {
+   "post": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Refresh Telegram chats",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "503": {
+      "$ref": "#/components/responses/E503"
+     }
+    },
+    "operationId": "refresh_telegram_chats"
+   }
+  },
+  "/stats/summary": {
+   "get": {
+    "tags": [
+     "Stats"
+    ],
+    "summary": "Get engagement summary",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StatsSummary"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "description": "Everything on the stats board: tiles (with the previous period for comparison), daily reach and delivery health, read speed, best-time heat map (weekday Monday=0 by hour), breakdowns by type, tag, client and app, chats with trends, top reactions, and Telegram's own channel insights. Counting starts with sends made after this feature shipped.",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "7, 30 (default) or 90; any 1 to 366"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Last day, YYYY-MM-DD (default today)"
+     },
+     {
+      "name": "platform",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list: whatsapp,telegram"
+     },
+     {
+      "name": "tag",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of tag ids; 0 = no tag"
+     },
+     {
+      "name": "client",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of client ids; 0 = no client"
+     },
+     {
+      "name": "chat",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of chat jids"
+     }
+    ],
+    "operationId": "get_engagement_summary"
+   }
+  },
+  "/stats/summary.txt": {
+   "get": {
+    "tags": [
+     "Stats"
+    ],
+    "summary": "Get summary as text",
+    "operationId": "stats_text",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "7, 30 (default) or 90; any 1 to 366"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Last day, YYYY-MM-DD (default today)"
+     },
+     {
+      "name": "platform",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list: whatsapp,telegram"
+     },
+     {
+      "name": "tag",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of tag ids; 0 = no tag"
+     },
+     {
+      "name": "client",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of client ids; 0 = no client"
+     },
+     {
+      "name": "chat",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of chat jids"
+     }
+    ],
+    "description": "A short plain-text report (WhatsApp formatting) for copying or posting.",
+    "responses": {
+     "200": {
+      "description": "text/plain"
+     }
+    }
+   }
+  },
+  "/stats/posts/{id}": {
+   "get": {
+    "tags": [
+     "Stats"
+    ],
+    "summary": "Get post engagement",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PostStats"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Per-chat numbers for a post's sends, cumulative reads per hour for 48 hours, reactions, and (when stats_people is on) who read, reacted or replied.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
+      "name": "schedule_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "One series"
+     },
+     {
+      "name": "occ",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "One send (with schedule_id)"
+     }
+    ],
+    "operationId": "get_post_engagement"
+   }
+  },
+  "/stats/badges": {
+   "get": {
+    "tags": [
+     "Stats"
+    ],
+    "summary": "Get calendar badges",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "object",
+          "properties": {
+           "reach": {
+            "type": "integer"
+           },
+           "reactions": {
+            "type": "integer"
+           },
+           "replies": {
+            "type": "integer"
+           },
+           "members": {
+            "type": "integer"
+           }
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "description": "Small numbers per send, keyed \"schedule_id|occ\".",
+    "parameters": [
+     {
+      "name": "from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "YYYY-MM-DD"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "YYYY-MM-DD"
+     }
+    ],
+    "operationId": "get_calendar_badges"
+   }
+  },
+  "/stats/export.csv": {
+   "get": {
+    "tags": [
+     "Stats"
+    ],
+    "summary": "Download stats as CSV",
+    "operationId": "stats_csv",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "7, 30 (default) or 90; any 1 to 366"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Last day, YYYY-MM-DD (default today)"
+     },
+     {
+      "name": "platform",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list: whatsapp,telegram"
+     },
+     {
+      "name": "tag",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of tag ids; 0 = no tag"
+     },
+     {
+      "name": "client",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of client ids; 0 = no client"
+     },
+     {
+      "name": "chat",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of chat jids"
+     }
+    ],
+    "description": "One row per send.",
+    "responses": {
+     "200": {
+      "description": "text/csv"
+     }
+    }
+   }
+  },
+  "/stats/share": {
+   "post": {
+    "tags": [
+     "Stats"
+    ],
+    "summary": "Send summary to a chat",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "sent_to": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Sends the text summary right away. Takes the same filters as /stats/summary in the query string.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "to": {
+          "type": "string",
+          "description": "\"me\" (default, your own chat) or a chat jid. Safe mode limits this to allowlisted chats."
+         }
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "7, 30 (default) or 90; any 1 to 366"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Last day, YYYY-MM-DD (default today)"
+     },
+     {
+      "name": "platform",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list: whatsapp,telegram"
+     },
+     {
+      "name": "tag",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of tag ids; 0 = no tag"
+     },
+     {
+      "name": "client",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of client ids; 0 = no client"
+     },
+     {
+      "name": "chat",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Comma list of chat jids"
+     }
+    ],
+    "operationId": "send_summary_to_a_chat"
+   }
+  },
+  "/sessions": {
+   "get": {
+    "tags": [
+     "Keys"
+    ],
+    "summary": "List signed-in browsers",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Session"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     }
+    },
+    "operationId": "list_signed-in_browsers"
+   }
+  },
+  "/sessions/{id}": {
+   "delete": {
+    "tags": [
+     "Keys"
+    ],
+    "summary": "Sign out a browser",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "sign_out_a_browser"
+   }
+  },
+  "/keys": {
+   "get": {
+    "tags": [
+     "Keys"
+    ],
+    "summary": "List API keys",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/APIKey"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     }
+    },
+    "operationId": "list_api_keys"
+   },
+   "post": {
+    "tags": [
+     "Keys"
+    ],
+    "summary": "Create API key",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "key": {
+           "$ref": "#/components/schemas/APIKey"
+          },
+          "secret": {
+           "type": "string"
+          },
+          "note": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "scope": {
+          "type": "string",
+          "enum": [
+           "read",
+           "write",
+           "admin"
+          ]
+         }
+        },
+        "required": [
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "create_api_key"
+   }
+  },
+  "/keys/{id}": {
+   "delete": {
+    "tags": [
+     "Keys"
+    ],
+    "summary": "Revoke API key",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "revoke_api_key"
+   }
+  }
+ },
+ "components": {
+  "securitySchemes": {
+   "bearer": {
+    "type": "http",
+    "scheme": "bearer",
+    "description": "API key from Settings → API keys (tsq_...)"
+   }
+  },
+  "schemas": {
+   "Error": {
+    "type": "object",
+    "properties": {
+     "error": {
+      "type": "string"
+     },
+     "code": {
+      "type": "string",
+      "enum": [
+       "bad_request",
+       "bad_json",
+       "unauthorized",
+       "forbidden",
+       "not_found",
+       "conflict",
+       "invalid",
+       "unknown_target",
+       "unprocessable",
+       "media_failed",
+       "fetch_failed",
+       "internal",
+       "unavailable"
+      ]
+     }
+    },
+    "required": [
+     "error",
+     "code"
+    ]
+   },
+   "Status": {
+    "type": "object",
+    "properties": {
+     "connected": {
+      "type": "boolean"
+     },
+     "phone": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string"
+     },
+     "safe_mode": {
+      "type": "boolean"
+     },
+     "allowlisted_targets": {
+      "type": "integer"
+     },
+     "sent_today": {
+      "type": "integer"
+     },
+     "daily_cap": {
+      "type": "integer"
+     },
+     "undo": {
+      "type": "string",
+      "description": "What undo would revert next"
+     },
+     "redo": {
+      "type": "string"
+     },
+     "now": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "version": {
+      "type": "string",
+      "description": "App version, e.g. v0.5.0"
+     },
+     "commit": {
+      "type": "string"
+     },
+     "key": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "scope": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "Settings": {
+    "type": "object",
+    "properties": {
+     "timezone": {
+      "type": "string"
+     },
+     "safe_mode": {
+      "type": "string"
+     },
+     "gap_min": {
+      "type": "string"
+     },
+     "gap_max": {
+      "type": "string"
+     },
+     "daily_cap": {
+      "type": "string"
+     },
+     "quiet_start": {
+      "type": "string"
+     },
+     "quiet_end": {
+      "type": "string"
+     },
+     "grace_min": {
+      "type": "string"
+     },
+     "tg_queue_hours": {
+      "type": "string"
+     },
+     "stats_people": {
+      "type": "string"
+     }
+    },
+    "description": "All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope."
+   },
+   "Target": {
+    "type": "object",
+    "properties": {
+     "jid": {
+      "type": "string",
+      "example": "120363012345678901@g.us",
+      "description": "WhatsApp JID; Telegram: tg:self, tg:chat:<id>, tg:ch:<id>:<hash>, tg:ch:<id>:<hash>:t<topic>, tg:story:self, tg:story:ch:<id>:<hash>; bot: tgbot:<chat id>"
+     },
+     "platform": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "telegram",
+       "telegram_bot"
+      ]
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "self",
+       "status",
+       "announce",
+       "group",
+       "channel",
+       "community"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "parent": {
+      "type": "string",
+      "description": "Community name for announcement/sub groups"
+     },
+     "can_send": {
+      "type": "boolean"
+     },
+     "members": {
+      "type": "integer"
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "allowed": {
+      "type": "boolean",
+      "description": "On the safe-mode allowlist"
+     },
+     "starred": {
+      "type": "boolean"
+     },
+     "gone": {
+      "type": "boolean"
+     }
+    }
+   },
+   "TargetPatch": {
+    "type": "object",
+    "properties": {
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "starred": {
+      "type": "boolean"
+     },
+     "allowed": {
+      "type": "boolean",
+      "description": "Admin scope"
+     }
+    }
+   },
+   "Tag": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string",
+      "example": "#128C7E"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "color"
+    ]
+   },
+   "TagInput": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string"
+     }
+    }
+   },
+   "Client": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string"
+     },
+     "quiet_start": {
+      "type": "string",
+      "description": "HH:MM. Empty = use the global quiet hours. Equal to quiet_end = no quiet hours."
+     },
+     "quiet_end": {
+      "type": "string",
+      "description": "HH:MM"
+     },
+     "timezone": {
+      "type": "string",
+      "description": "Zone for the quiet hours; empty = the app's zone"
+     }
+    }
+   },
+   "ClientInput": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string"
+     },
+     "quiet_start": {
+      "type": "string"
+     },
+     "quiet_end": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string"
+     }
+    },
+    "description": "Quiet hours apply to chats assigned to this client (and to posts with this client when the chat has none)."
+   },
+   "TelegramState": {
+    "type": "object",
+    "properties": {
+     "configured": {
+      "type": "boolean",
+      "description": "telegram.app (api_id, api_hash) exists on the server"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "off",
+       "starting",
+       "logged_out",
+       "qr",
+       "password",
+       "ready",
+       "error"
+      ]
+     },
+     "user": {
+      "type": "string"
+     },
+     "username": {
+      "type": "string"
+     },
+     "error": {
+      "type": "string"
+     },
+     "qr_expires": {
+      "type": "integer"
+     },
+     "version": {
+      "type": "integer"
+     },
+     "chats": {
+      "type": "integer",
+      "description": "Telegram chats known"
+     },
+     "allowlisted": {
+      "type": "integer"
+     },
+     "queue_hours": {
+      "type": "integer",
+      "description": "0 = off; otherwise Telegram sends due within this many hours are handed to Telegram's own scheduled queue"
+     },
+     "bot": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "username": {
+        "type": "string"
+       },
+       "chats": {
+        "type": "integer"
+       }
+      }
+     }
+    }
+   },
+   "Session": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "device": {
+      "type": "string",
+      "description": "Browser user agent"
+     },
+     "created_at": {
+      "type": "integer"
+     },
+     "last_seen": {
+      "type": "integer"
+     },
+     "current": {
+      "type": "boolean"
+     }
+    }
+   },
+   "Set": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "jids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "SetInput": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "jids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "JIDs or exact chat names"
+     }
+    }
+   },
+   "Media": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "image",
+       "video",
+       "voice",
+       "audio",
+       "document"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "width": {
+      "type": "integer"
+     },
+     "height": {
+      "type": "integer"
+     },
+     "seconds": {
+      "type": "integer"
+     }
+    }
+   },
+   "Override": {
+    "type": "object",
+    "properties": {
+     "occ": {
+      "type": "string"
+     },
+     "at": {
+      "type": "string"
+     },
+     "skipped": {
+      "type": "boolean"
+     },
+     "caption": {
+      "type": "string"
+     },
+     "media": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "description": "A per-send exception on a repeating schedule"
+   },
+   "Schedule": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer",
+      "description": "Keep when editing so deliveries stay linked"
+     },
+     "start": {
+      "type": "string",
+      "example": "2026-10-14T18:30",
+      "description": "Local wall time in tz"
+     },
+     "tz": {
+      "type": "string",
+      "example": "America/New_York"
+     },
+     "rrule": {
+      "type": "string",
+      "example": "FREQ=WEEKLY;BYDAY=WE",
+      "description": "RFC 5545 RRULE body; empty = once"
+     },
+     "until": {
+      "type": "string",
+      "description": "Local YYYY-MM-DDTHH:MM, inclusive"
+     },
+     "overrides": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Override"
+      }
+     }
+    },
+    "required": [
+     "start",
+     "tz"
+    ]
+   },
+   "Post": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "title": {
+      "type": "string"
+     },
+     "caption": {
+      "type": "string"
+     },
+     "media": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "tag_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "scheduled",
+       "paused",
+       "archived"
+      ]
+     },
+     "created_at": {
+      "type": "integer"
+     },
+     "updated_at": {
+      "type": "integer"
+     },
+     "schedules": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Schedule"
+      }
+     }
+    }
+   },
+   "PostSummary": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/Post"
+     },
+     {
+      "type": "object",
+      "properties": {
+       "next_at": {
+        "oneOf": [
+         {
+          "type": "string",
+          "format": "date-time"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "last_at": {
+        "oneOf": [
+         {
+          "type": "string",
+          "format": "date-time"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "upcoming": {
+        "type": "integer",
+        "description": "Sends in the next 90 days"
+       }
+      }
+     }
+    ]
+   },
+   "BulkInput": {
+    "type": "object",
+    "properties": {
+     "ids": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "action": {
+      "type": "string",
+      "enum": [
+       "pause",
+       "resume",
+       "draft",
+       "archive",
+       "delete",
+       "tag",
+       "client",
+       "add_targets",
+       "remove_targets"
+      ]
+     },
+     "tag_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "For add_targets/remove_targets: JIDs or names"
+     }
+    },
+    "required": [
+     "ids",
+     "action"
+    ]
+   },
+   "PostInput": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "caption": {
+      "type": "string",
+      "description": "WhatsApp markup allowed: *bold* _italic_ ~strike~ ```mono```"
+     },
+     "media": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      },
+      "description": "Media ids from POST /media; each is sent as its own message, caption on the first"
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "JIDs, exact chat names, \"me\" or \"status\""
+     },
+     "tag_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "scheduled",
+       "paused",
+       "archived"
+      ],
+      "description": "Default: draft (even with a time). Set scheduled to send."
+     },
+     "schedules": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Schedule"
+      }
+     },
+     "send_at": {
+      "type": "string",
+      "description": "Shortcut for one send: RFC 3339, or local YYYY-MM-DDTHH:MM in tz",
+      "example": "2026-10-14T18:30:00-07:00"
+     },
+     "tz": {
+      "type": "string",
+      "description": "Zone for send_at and schedules without tz. Default: the app's time zone"
+     }
+    },
+    "example": {
+     "title": "Weekly flyer",
+     "caption": "*This week* at the center",
+     "media": [
+      12
+     ],
+     "targets": [
+      "Main group"
+     ],
+     "status": "scheduled",
+     "schedules": [
+      {
+       "start": "2026-10-14T18:30",
+       "tz": "America/New_York",
+       "rrule": "FREQ=WEEKLY;BYDAY=WE"
+      }
+     ]
+    }
+   },
+   "PostPatch": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "caption": {
+      "type": "string",
+      "description": "WhatsApp markup allowed: *bold* _italic_ ~strike~ ```mono```"
+     },
+     "media": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      },
+      "description": "Media ids from POST /media; each is sent as its own message, caption on the first"
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "JIDs, exact chat names, \"me\" or \"status\""
+     },
+     "tag_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "client_id": {
+      "oneOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "scheduled",
+       "paused",
+       "archived"
+      ],
+      "description": "Default: draft (even with a time). Set scheduled to send."
+     },
+     "schedules": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Schedule"
+      }
+     },
+     "send_at": {
+      "type": "string",
+      "description": "Shortcut for one send: RFC 3339, or local YYYY-MM-DDTHH:MM in tz",
+      "example": "2026-10-14T18:30:00-07:00"
+     },
+     "tz": {
+      "type": "string",
+      "description": "Zone for send_at and schedules without tz. Default: the app's time zone"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "all",
+       "one",
+       "future"
+      ],
+      "description": "Repeating posts: which sends to change. Default all"
+     },
+     "schedule_id": {
+      "type": "integer",
+      "description": "With scope one/future: the schedule of the send"
+     },
+     "occ": {
+      "type": "string",
+      "description": "With scope one/future: the send's original local time (from GET /sends)"
+     },
+     "at": {
+      "type": "string",
+      "description": "scope=one: new local time for this send"
+     },
+     "at_tz": {
+      "type": "string",
+      "description": "Zone of at; default the app's zone"
+     }
+    },
+    "description": "Send only the fields to change. status: draft, scheduled (sends), paused or archived."
+   },
+   "Send": {
+    "type": "object",
+    "properties": {
+     "post_id": {
+      "type": "integer"
+     },
+     "schedule_id": {
+      "type": "integer"
+     },
+     "occ": {
+      "type": "string"
+     },
+     "at": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "tz": {
+      "type": "string"
+     },
+     "repeating": {
+      "type": "boolean"
+     },
+     "rrule": {
+      "type": "string"
+     },
+     "index": {
+      "type": "integer"
+     },
+     "edited": {
+      "type": "boolean"
+     },
+     "caption": {
+      "type": "string"
+     },
+     "media": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string"
+     },
+     "delivery": {
+      "type": "string",
+      "enum": [
+       "",
+       "sent",
+       "partial",
+       "failed",
+       "blocked"
+      ]
+     },
+     "sent": {
+      "type": "integer"
+     },
+     "failed": {
+      "type": "integer"
+     },
+     "blocked": {
+      "type": "integer"
+     }
+    }
+   },
+   "SendRef": {
+    "type": "object",
+    "properties": {
+     "post_id": {
+      "type": "integer"
+     },
+     "schedule_id": {
+      "type": "integer"
+     },
+     "occ": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string",
+      "description": "New local YYYY-MM-DDTHH:MM"
+     },
+     "tz": {
+      "type": "string",
+      "description": "Zone of to"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "one",
+       "all"
+      ]
+     }
+    },
+    "required": [
+     "post_id",
+     "schedule_id",
+     "occ"
+    ]
+   },
+   "Delivery": {
+    "type": "object",
+    "properties": {
+     "jid": {
+      "type": "string"
+     },
+     "state": {
+      "type": "string",
+      "enum": [
+       "sent",
+       "failed",
+       "blocked",
+       "missed"
+      ]
+     },
+     "error": {
+      "type": "string"
+     }
+    }
+   },
+   "Change": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "at": {
+      "type": "integer"
+     },
+     "actor": {
+      "type": "string",
+      "description": "you, sender, or api:<key name>"
+     },
+     "summary": {
+      "type": "string"
+     },
+     "undone": {
+      "type": "boolean"
+     },
+     "undoable": {
+      "type": "boolean"
+     },
+     "redoable": {
+      "type": "boolean"
+     }
+    }
+   },
+   "WriteResult": {
+    "type": "object",
+    "properties": {
+     "change": {
+      "type": "integer",
+      "description": "History id of this change; pass to POST /undo as expect_change. For undo/redo: the new history entry"
+     },
+     "undo": {
+      "type": "string"
+     },
+     "redo": {
+      "type": "string"
+     },
+     "summary": {
+      "type": "string"
+     },
+     "post": {
+      "$ref": "#/components/schemas/Post"
+     },
+     "id": {
+      "type": "integer"
+     },
+     "undid": {
+      "type": "integer",
+      "description": "Undo only: the change that was reverted"
+     },
+     "redid": {
+      "type": "integer",
+      "description": "Redo only: the change that was re-applied"
+     },
+     "notice": {
+      "type": "string",
+      "description": "Create only: present when a post with a time was saved as a draft because no status was given"
+     }
+    }
+   },
+   "StatsSummary": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     },
+     "days": {
+      "type": "integer"
+     },
+     "tz": {
+      "type": "string"
+     },
+     "tiles": {
+      "$ref": "#/components/schemas/StatTiles"
+     },
+     "previous": {
+      "$ref": "#/components/schemas/StatTiles"
+     },
+     "member_growth": {
+      "type": "integer"
+     },
+     "daily": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "day": {
+         "type": "string"
+        },
+        "reach": {
+         "type": "integer"
+        },
+        "posts": {
+         "type": "integer"
+        },
+        "sent": {
+         "type": "integer"
+        },
+        "held": {
+         "type": "integer"
+        },
+        "failed": {
+         "type": "integer"
+        },
+        "missed": {
+         "type": "integer"
+        },
+        "members": {
+         "type": "integer"
+        }
+       }
+      }
+     },
+     "speed": {
+      "type": "object",
+      "description": "Keys 1h, 6h, 24h, 7d",
+      "additionalProperties": {
+       "type": "object",
+       "properties": {
+        "rate": {
+         "type": "number"
+        },
+        "sends": {
+         "type": "integer"
+        }
+       }
+      }
+     },
+     "heatmap": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "rate": {
+          "type": "number"
+         },
+         "sends": {
+          "type": "integer"
+         }
+        }
+       }
+      }
+     },
+     "by_kind": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/StatGroup"
+      }
+     },
+     "by_tag": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/StatGroup"
+      }
+     },
+     "by_client": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/StatGroup"
+      }
+     },
+     "by_platform": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/StatGroup"
+      }
+     },
+     "chats": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "jid": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        },
+        "platform": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "members": {
+         "type": "integer"
+        },
+        "sends": {
+         "type": "integer"
+        },
+        "reach": {
+         "type": "integer"
+        },
+        "read_rate": {
+         "type": "number"
+        },
+        "reactions": {
+         "type": "integer"
+        },
+        "replies": {
+         "type": "integer"
+        },
+        "growth": {
+         "type": "integer"
+        },
+        "trend": {
+         "type": "array",
+         "items": {
+          "type": "integer"
+         }
+        }
+       }
+      }
+     },
+     "emoji": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "emoji": {
+         "type": "string"
+        },
+        "count": {
+         "type": "integer"
+        }
+       }
+      }
+     },
+     "insights": {
+      "type": "object"
+     },
+     "names": {
+      "type": "boolean"
+     },
+     "tracking_since": {
+      "type": "integer"
+     }
+    }
+   },
+   "StatTiles": {
+    "type": "object",
+    "properties": {
+     "posts": {
+      "type": "integer"
+     },
+     "sends": {
+      "type": "integer"
+     },
+     "on_time": {
+      "type": "number"
+     },
+     "reach": {
+      "type": "integer"
+     },
+     "read_rate": {
+      "type": "number"
+     },
+     "reactions": {
+      "type": "integer"
+     },
+     "replies": {
+      "type": "integer"
+     },
+     "forwards": {
+      "type": "integer"
+     },
+     "reactions_per_post": {
+      "type": "number"
+     },
+     "replies_per_post": {
+      "type": "number"
+     }
+    }
+   },
+   "StatGroup": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string"
+     },
+     "sends": {
+      "type": "integer"
+     },
+     "read_rate": {
+      "type": "number"
+     },
+     "reach": {
+      "type": "number"
+     },
+     "reactions": {
+      "type": "number"
+     },
+     "replies": {
+      "type": "number"
+     },
+     "rate_sends": {
+      "type": "integer"
+     }
+    }
+   },
+   "PostStats": {
+    "type": "object",
+    "properties": {
+     "sends": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "totals": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "integer"
+      }
+     },
+     "read_rate": {
+      "type": "number"
+     },
+     "curve": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "emoji": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "integer"
+      }
+     },
+     "names": {
+      "type": "boolean"
+     },
+     "people": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "delivery_id": {
+         "type": "integer"
+        },
+        "who": {
+         "type": "string"
+        },
+        "what": {
+         "type": "string",
+         "enum": [
+          "read",
+          "played",
+          "react",
+          "reply"
+         ]
+        },
+        "emoji": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer"
+        }
+       }
+      }
+     }
+    }
+   },
+   "APIKey": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "read",
+       "write",
+       "admin"
+      ]
+     },
+     "prefix": {
+      "type": "string"
+     },
+     "created_at": {
+      "type": "integer"
+     },
+     "last_used_at": {
+      "type": "integer"
+     },
+     "revoked_at": {
+      "type": "integer"
+     }
+    }
+   }
+  },
+  "responses": {
+   "E400": {
+    "description": "Bad request",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   },
+   "E401": {
+    "description": "Missing or invalid API key",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   },
+   "E403": {
+    "description": "Key scope too low",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   },
+   "E404": {
+    "description": "Not found",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   },
+   "E409": {
+    "description": "Conflict",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   },
+   "E422": {
+    "description": "Invalid input (message explains what to fix)",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   },
+   "E503": {
+    "description": "WhatsApp not connected",
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    }
+   }
+  }
+ }
+}

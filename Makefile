@@ -1,0 +1,26 @@
+# Common tasks. See AGENTS.md for the rules behind them.
+.PHONY: check build ui spec test deploy release dev
+
+check:            ## everything CI would run
+	scripts/check.sh
+
+build:            ## bin/townsquare with version info
+	scripts/build.sh
+
+ui:               ## rebuild web/dist from web/ui
+	cd web/ui && npm run build
+
+spec:             ## regenerate internal/server/openapi.json
+	python3 tools/gen_openapi.py
+
+test:
+	go test ./...
+
+dev:              ## UI dev server with hot reload, proxying /api to a running townsquare on :8890
+	cd web/ui && npm run dev
+
+deploy:           ## back up, build, restart on the production host, verify
+	scripts/deploy.sh
+
+release:          ## make release V=v0.6.0 [DRY=--dry-run]
+	scripts/release.sh $(V) $(DRY)
