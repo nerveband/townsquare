@@ -1,5 +1,5 @@
 # Common tasks. See AGENTS.md for the rules behind them.
-.PHONY: check build ui spec test deploy release dev
+.PHONY: check build ui spec test deploy release verify-release package dev
 
 check:            ## everything CI would run
 	scripts/check.sh
@@ -22,5 +22,11 @@ dev:              ## UI dev server with hot reload, proxying /api to a running t
 deploy:           ## back up, build, restart on the production host, verify
 	scripts/deploy.sh
 
-release:          ## make release V=v0.6.0 [DRY=--dry-run]
+release:          ## make release V=v0.6.0 [DRY=--dry-run]  (see docs/releasing.md)
 	scripts/release.sh $(V) $(DRY)
+
+verify-release:   ## make verify-release V=v0.6.0: check a published release like installs do
+	scripts/verify-release.sh $(V)
+
+package:          ## make package V=v0.6.0: build every download into dist/ (no publishing)
+	scripts/package.sh $(V)

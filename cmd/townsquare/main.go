@@ -43,6 +43,7 @@ Usage:
   townsquare allow [JID...]           show or extend the send allowlist (~/.townsquare/allow.txt)
   townsquare channel-create --name NAME [--desc TEXT]
   townsquare update [--check]          download the newest release (used on the next start)
+  townsquare due [--within 15m]        list sends due within that window either side of now (exit 3 if any)
 
 Global flags (before the command):
   --data DIR   session directory (default ~/.townsquare)
@@ -87,6 +88,25 @@ func main() {
 		return
 	case "version":
 		fmt.Println("townsquare", version.String())
+		return
+	case "due":
+		// Used by scripts/deploy.sh: never restart Townsquare right around a send.
+		fs := flag.NewFlagSet("due", flag.ExitOnError)
+		within := fs.Duration("within", 15*time.Minute, "window either side of now")
+		_ = fs.Parse(args[1:])
+		db, err := store.Open(*dataDir)
+		check(err)
+		posts, err := db.Posts(ctx, "scheduled")
+		check(err)
+		now := time.Now()
+		due := store.Expand(posts, now.Add(-*within), now.Add(*within))
+		for _, o := range due {
+			fmt.Printf("post %d due %s (%d chats)\n", o.PostID, o.At.Local().Format("15:04"), len(o.Targets))
+		}
+		if len(due) > 0 {
+			os.Exit(3)
+		}
+		fmt.Println("nothing due within", *within)
 		return
 	case "update":
 		fs := flag.NewFlagSet("update", flag.ExitOnError)

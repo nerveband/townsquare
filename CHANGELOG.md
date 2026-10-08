@@ -6,6 +6,12 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Added
+- `townsquare due` lists posts due soon. `make deploy` uses it and won't restart Townsquare within
+  15 minutes of a send.
+- Release checks: a release must be newer than the last one and have its changelog ready, and
+  after publishing it is tested the way installs see it (`make verify-release`).
+
 ## [v0.6.1] - 2026-10-08
 
 ### Added

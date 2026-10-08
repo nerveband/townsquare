@@ -15,6 +15,16 @@ LISTEN="${TOWNSQUARE_LISTEN:-127.0.0.1:8890}"
 TSNAME="${TOWNSQUARE_TAILSCALE:-townsquare}"
 LOG="${TOWNSQUARE_LOG:-$HOME/.townsquare/serve.log}"
 
+# Never restart right around a send (FORCE=1 to override).
+# (Exit code 3 = something is due; older binaries without `due` are ignored.)
+if [ -z "${FORCE:-}" ] && [ -x bin/townsquare ]; then
+  code=0; bin/townsquare --data "$DATA" due --within 15m >/dev/null 2>&1 || code=$?
+  if [ "$code" = 3 ]; then
+    bin/townsquare --data "$DATA" due --within 15m || true
+    echo "a post is due within 15 minutes; deploy after it goes out (or FORCE=1 make deploy)"; exit 1
+  fi
+fi
+
 # Stop the running app (and the pre-rename "wacal" session) before touching data.
 SERVICE=""
 [ -f "$HOME/Library/LaunchAgents/com.townsquare.server.plist" ] && SERVICE=1

@@ -1,8 +1,9 @@
 # AGENTS.md: Townsquare
 
 One calendar to schedule all your community posts, across WhatsApp and Telegram. One Go binary:
-platform senders (whatsmeow for WhatsApp, the Bot API for Telegram), scheduler, SQLite, REST API
-(`/api/v1`) and an embedded Svelte UI.
+platform senders (whatsmeow for WhatsApp; gotd/td for the user's Telegram account, plus an
+optional Bot API bot), scheduler, SQLite, REST API (`/api/v1`), an embedded Svelte UI, and a
+signed self-updater. Shipped as a Mac app, Windows exe, `.deb` and plain binaries.
 
 ## 1. UI and API ship together
 
@@ -21,6 +22,7 @@ things like API keys and `expect_change` are the exception). A change is done wh
 6. **History:** every write goes through `DB.Mutate(...)` with a plain-English summary and the
    right entity keys, so it is undoable and attributed (`you`, `sender`, `api:<key>`).
 7. **Tests** for new logic, and a `CHANGELOG.md` line under `## [Unreleased]` incl. "API changes".
+   Users read the changelog inside the app after every update: write it for them, in plain words.
 
 ## 2. Safety (real WhatsApp groups)
 
@@ -34,17 +36,26 @@ things like API keys and `expect_change` are the exception). A change is done wh
   127.0.0.1:8891`; fake data, never connects or sends). README images come from demo mode.
 - Runs on the owner's own machine. No cloud one-click deploys (datacenter IPs raise WhatsApp ban
   risk). One process per WhatsApp session: stop `serve` before CLI send commands.
-- Telegram goes through the official Bot API only. Never log or commit bot tokens.
+- Telegram uses the official API only (gotd/td as the user's account, or the Bot API). Never log
+  or commit bot tokens, Telegram sessions, or the shared Telegram app id.
 - Web routes (`/api/...`) need a signed-in session; agents use `/api/v1` with keys. Only
   `/api/auth/*`, the public v1 docs and static files are open.
 - Never log, commit or print secrets (API keys, bot tokens, `TS_AUTHKEY`, files under
-  `~/.townsquare`). The repo is public: keep host names, IPs and personal data out of it.
+  `~/.townsquare`, the release signing key and the Telegram app id in `~/.config/townsquare`).
+  The repo is public: keep host names, IPs, phone numbers, real group ids and personal data out
+  of it (tests use made-up ids).
+- Never restart or deploy production within 15 minutes of a scheduled send (`bin/townsquare
+  due`; `make deploy` checks). Production updates itself from releases on the same rule.
 
 ## 3. Where code goes
 
-`internal/wa` WhatsApp only · `internal/tg` Telegram only · `internal/store` SQL only ·
-`internal/server` HTTP shapes and the send loop · `web/ui` presentation only (the server validates everything) · `tools/gen_openapi.py`
-is the spec source · `scripts/` check, build, deploy, release.
+`internal/wa` WhatsApp only · `internal/tg` Telegram account (and its app id sources) ·
+`internal/tgbot` Telegram bot · `internal/store` SQL only · `internal/server` HTTP shapes, the
+send loop, stats, updates and setup · `internal/update` signed self-update and hand-off ·
+`internal/autostart` start at login per OS · `internal/changelog` reads `CHANGELOG.md` (embedded
+by the root package) · `web/ui` presentation only (the server validates everything) ·
+`tools/gen_openapi.py` is the spec source · `tools/sign`, `tools/manifest`, `tools/mkdeb.py`
+release tooling · `scripts/` check, build, package, release, verify-release, deploy, service.
 
 ## 4. Rules the code won't tell you
 
@@ -64,5 +75,6 @@ is the spec source · `scripts/` check, build, deploy, release.
 ## 5. More detail (read when relevant)
 
 - Changing or removing anything in `/api/v1`: read `docs/api-deprecation.md` first.
-- Cutting a release or deploying: read `docs/releasing.md`.
+- Cutting a release, deploying, or touching updates, packaging or the signing key: read
+  `docs/releasing.md` and follow its checklist in order. Release only when the owner asks.
 - Before pushing, always: `make check`.

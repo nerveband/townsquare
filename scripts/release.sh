@@ -14,9 +14,22 @@ V="${1:-}"; DRY="${2:-}"
 git fetch -q origin
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" ] || { echo "push or pull first: HEAD != origin/master"; exit 1; }
 git rev-parse -q --verify "refs/tags/$V" >/dev/null && { echo "tag $V exists"; exit 1; }
+# Versions only go up: installs never move backwards.
+LAST="$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName' 2>/dev/null || true)"
+if [ -n "$LAST" ]; then
+  newest="$(printf '%s\n%s\n' "${LAST#v}" "${V#v}" | sort -V | tail -1)"
+  [ "$newest" = "${V#v}" ] && [ "$LAST" != "$V" ] || { echo "$V must be newer than the latest release $LAST"; exit 1; }
+fi
+for f in "${TOWNSQUARE_SIGNING_KEY:-$HOME/.config/townsquare/release-signing.key}" "${TOWNSQUARE_TG_APP_FILE:-$HOME/.config/townsquare/telegram-app}"; do
+  [ -f "$f" ] || { echo "missing $f (restore it from 1Password, see docs/releasing.md)"; exit 1; }
+done
 
 NOTES="$(awk -v v="$V" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md)"
 [ -n "$(echo "$NOTES" | tr -d '[:space:]')" ] || { echo "CHANGELOG.md needs a non-empty \"## [$V]\" section"; exit 1; }
+UNREL="$(awk '/^## \[Unreleased\]/ {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md | tr -d '[:space:]')"
+[ -z "$UNREL" ] || { echo "CHANGELOG.md still has items under [Unreleased]; move them into [$V] or leave them out on purpose with UNRELEASED_OK=1"; [ -n "${UNRELEASED_OK:-}" ] || exit 1; }
+FIRST="$(grep -m1 -oE '^## \[v[^]]+\]' CHANGELOG.md || true)"
+[ "$FIRST" = "## [$V]" ] || { echo "the newest section in CHANGELOG.md must be [$V] (found $FIRST)"; exit 1; }
 
 scripts/check.sh
 
@@ -27,5 +40,7 @@ if [ "$DRY" = "--dry-run" ]; then
 fi
 git tag -a "$V" -m "Townsquare $V"
 git push -q origin "$V"
-gh release create "$V" dist/* --title "Townsquare $V" --notes "$NOTES"
+gh release create "$V" dist/* --title "Townsquare $V" --notes "$NOTES" --latest
 echo "✓ released $V"
+sleep 5
+scripts/verify-release.sh "$V"
