@@ -19,8 +19,8 @@ test:
 dev:              ## UI dev server with hot reload, proxying /api to a running townsquare on :8890
 	cd web/ui && npm run dev
 
-deploy:           ## back up, build, restart on the production host, verify
-	scripts/deploy.sh
+deploy:           ## install the released Mac app on the production host: make deploy [V=v0.6.2]
+	scripts/deploy.sh $(V)
 
 release:          ## make release V=v0.6.0 [DRY=--dry-run]  (see docs/releasing.md)
 	scripts/release.sh $(V) $(DRY)

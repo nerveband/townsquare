@@ -7,10 +7,20 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 ## [Unreleased]
 
 ### Added
-- `townsquare due` lists posts due soon. `make deploy` uses it and won't restart Townsquare within
-  15 minutes of a send.
-- Release checks: a release must be newer than the last one and have its changelog ready, and
-  after publishing it is tested the way installs see it (`make verify-release`).
+- **Updates can't cost you a post.** Townsquare installs an update at the first moment with no
+  post due within 15 minutes either side and nothing being sent, and shows when that will be.
+  It test-runs the new version first; if it fails, or doesn't start properly twice, Townsquare
+  skips it and keeps running the version that works.
+- **Everything works without a screen.** New API (and Settings) for the server address and
+  tailnet name, restarting, the Telegram bot token, making sign-in links for people, and
+  creating WhatsApp channels. `townsquare config` and `townsquare autostart` do the same in a
+  terminal. Opening the app and start at login use the saved address.
+- Only one Townsquare can run on a data folder at a time, so two copies can never double-send.
+- `townsquare due` lists posts due soon.
+### API changes
+- New `GET/PATCH /api/v1/config`, `POST /api/v1/restart`, `PUT/DELETE /api/v1/telegram/bot`,
+  `POST /api/v1/login-link` and `POST /api/v1/whatsapp/channels` (admin except GET).
+- `GET /api/v1/update` includes `install_at`.
 
 ## [v0.6.1] - 2026-10-08
 

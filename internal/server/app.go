@@ -51,6 +51,28 @@ func (s *Server) busySoon(ctx context.Context) string {
 	return ""
 }
 
+// nextFreeWindow is the first time from now with no post due within 15 minutes
+// either side: when an automatic update (or a requested restart) will happen.
+func (s *Server) nextFreeWindow(ctx context.Context, now time.Time) time.Time {
+	posts, err := s.DB.Posts(ctx, "scheduled")
+	if err != nil {
+		return now
+	}
+	const pad = 15 * time.Minute
+	occ := store.Expand(posts, now.Add(-pad), now.Add(72*time.Hour))
+	t := now
+	for moved := true; moved; {
+		moved = false
+		for _, o := range occ {
+			if !t.Before(o.At.Add(-pad)) && !t.After(o.At.Add(pad)) {
+				t = o.At.Add(pad + time.Minute)
+				moved = true
+			}
+		}
+	}
+	return t
+}
+
 func (s *Server) sendingNow() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -58,21 +80,21 @@ func (s *Server) sendingNow() string {
 }
 
 // RunUpdates checks for a new release every 6 hours. With automatic updates on
-// (the default) it downloads the release and restarts into it when no post is
-// due within 15 minutes. Builds from source only report updates.
+// (the default) it downloads the release and restarts into it at the first
+// minute with no post due within 15 minutes either side and nothing being sent.
+// Before restarting it runs the new binary once to make sure it works; a version
+// that fails is skipped. Builds from source only report updates.
 func (s *Server) RunUpdates(ctx context.Context) {
 	if s.Updater == nil || s.Demo {
 		return
 	}
-	t := time.NewTicker(10 * time.Minute)
+	t := time.NewTicker(time.Minute)
 	defer t.Stop()
-	first := time.After(time.Minute)
 	var last time.Time
-	for {
+	for n := 0; ; n++ {
 		select {
 		case <-ctx.Done():
 			return
-		case <-first:
 		case <-t.C:
 		}
 		auto := s.DB.Setting(ctx, "auto_update") != "0"
@@ -90,7 +112,10 @@ func (s *Server) RunUpdates(ctx context.Context) {
 			}
 			s.syncTelegramApp()
 		}
-		if s.reloadWanted() && s.busySoon(ctx) == "" {
+		if s.busySoon(ctx) != "" {
+			continue // never restart around a send
+		}
+		if s.reloadWanted() {
 			log.Println("telegram: shared app id changed; restarting to use it")
 			s.DB.Log(ctx, "townsquare", "switched to the new shared Telegram app id")
 			s.requestRestart("reload")
@@ -99,13 +124,16 @@ func (s *Server) RunUpdates(ctx context.Context) {
 		if !auto || dev {
 			continue
 		}
-		if st, ok := update.ReadStaged(s.DataDir); ok && update.Newer(st.Version, s.Updater.Current) && s.busySoon(ctx) == "" {
-			if _, ok := update.StagedPath(s.DataDir, s.Updater.Current); ok {
-				s.DB.Log(ctx, "townsquare", "updated itself to "+st.Version)
-				log.Println("update: restarting into", st.Version)
-				s.requestRestart("update")
-				return
+		if st, ok := update.ReadStaged(s.DataDir); ok && update.Newer(st.Version, s.Updater.Current) {
+			if err := update.Probe(s.DataDir, s.Updater.Current); err != nil {
+				log.Println("update:", err)
+				s.DB.Log(ctx, "townsquare", "skipped update "+st.Version+": it didn't start on this computer")
+				continue
 			}
+			s.DB.Log(ctx, "townsquare", "updated itself to "+st.Version)
+			log.Println("update: restarting into", st.Version)
+			s.requestRestart("update")
+			return
 		}
 	}
 }
@@ -122,7 +150,8 @@ func (s *Server) updateState(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]any{"current": st.Current, "latest": st.Latest, "notes": st.Notes, "available": st.Available,
 		"staged": st.Staged, "checked_at": st.CheckedAt, "error": st.Error, "platform": st.Platform, "dev": st.Dev,
-		"auto": s.DB.Setting(r.Context(), "auto_update") != "0", "changes": changes})
+		"auto": s.DB.Setting(r.Context(), "auto_update") != "0", "changes": changes,
+		"install_at": s.nextFreeWindow(r.Context(), time.Now()).Unix()})
 }
 
 func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +198,10 @@ func (s *Server) updateInstall(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "up_to_date": true, "current": s.Updater.Current})
 		return
 	}
+	if err := update.Probe(s.DataDir, s.Updater.Current); err != nil {
+		failCode(w, 502, "unavailable", err)
+		return
+	}
 	s.DB.Log(r.Context(), actorOf(r), "updated Townsquare to "+v)
 	writeJSON(w, map[string]any{"ok": true, "restarting": true, "version": v})
 	go func() { time.Sleep(500 * time.Millisecond); s.requestRestart("update") }()
@@ -190,7 +223,7 @@ func (s *Server) setAutostart(w http.ResponseWriter, r *http.Request) {
 	}
 	var err error
 	if *in.Enabled {
-		err = autostart.Enable(s.DataDir, nz(s.Listen, "127.0.0.1:8890"))
+		err = autostart.Enable(s.DataDir)
 	} else {
 		err = autostart.Disable()
 	}

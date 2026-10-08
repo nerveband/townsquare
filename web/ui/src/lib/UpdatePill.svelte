@@ -103,7 +103,7 @@
       <div class="pop" role="dialog" aria-label="Update">
         <div class="hd">
           {#if kind === 'after'}<b class="display">Updated to {after.version}</b><span class="muted">Here's what's new.</span>
-          {:else if kind === 'staged'}<b class="display">Townsquare {upd.staged}</b><span class="muted">Downloaded and checked. It installs on its own when no post is due in the next 15 minutes.</span>
+          {:else if kind === 'staged'}<b class="display">Townsquare {upd.staged}</b><span class="muted">Downloaded and checked. It installs on its own when no post is due within 15 minutes{#if upd.install_at} (next chance: {new Date(upd.install_at * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}){/if}.</span>
           {:else}<b class="display">Townsquare {upd.latest}</b><span class="muted">You have {upd.current}.{upd.auto ? ' It downloads and installs on its own soon.' : ''}</span>{/if}
         </div>
         <div class="notes">

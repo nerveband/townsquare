@@ -6,10 +6,13 @@ fail() { echo "✗ $*" >&2; exit 1; }
 step() { echo "• $*"; }
 
 step "gofmt"
-[ -z "$(gofmt -l cmd internal web tools 2>/dev/null)" ] || fail "gofmt needed: $(gofmt -l cmd internal web tools)"
+[ -z "$(gofmt -l cmd internal web tools *.go 2>/dev/null)" ] || fail "gofmt needed: $(gofmt -l cmd internal web tools *.go)"
 
-step "go vet"
+step "go vet (this system, then every release platform)"
 go vet ./...
+for t in windows/amd64 linux/amd64 linux/arm64 linux/arm darwin/amd64; do
+  GOOS="${t%/*}" GOARCH="${t#*/}" CGO_ENABLED=0 go vet ./... || fail "go vet failed for $t"
+done
 
 step "OpenAPI spec is generated and current"
 python3 tools/gen_openapi.py >/dev/null
@@ -28,5 +31,8 @@ if git grep -I -n $'\u2014' -- ':!web/dist' ':!*.lock' ':!package-lock.json' ':!
   git grep -I -n $'\u2014' -- ':!web/dist' ':!package-lock.json' ':!go.sum' | head -5
   fail "replace em dashes with commas, colons or parentheses"
 fi
+
+step "every API route is in the web app too (parity)"
+python3 tools/parity.py || fail "see above: add the missing route to Handler() in server.go, or list it in tools/parity.py with a reason"
 
 echo "✓ all checks passed"

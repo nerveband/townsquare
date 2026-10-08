@@ -2912,6 +2912,349 @@
     "operationId": "stop_townsquare"
    }
   },
+  "/config": {
+   "get": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Get server settings",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ServerConfig"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "operationId": "get_server_settings"
+   },
+   "patch": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Change server settings",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ServerConfig"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Admin. Where the web app listens and its tailnet name (saved in config.json). Applies after POST /restart.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "listen": {
+          "type": "string"
+         },
+         "tailscale": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "change_server_settings"
+   }
+  },
+  "/restart": {
+   "post": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Restart Townsquare",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "restarting": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Applies server settings or a new bot token. Refuses (409 busy) when a post is due within 15 minutes unless force is true.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "force": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "restart_townsquare"
+   }
+  },
+  "/login-link": {
+   "post": {
+    "tags": [
+     "Keys"
+    ],
+    "summary": "Make a sign-in link for a person",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "link": {
+           "type": "string"
+          },
+          "expires_at": {
+           "type": "integer"
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     }
+    },
+    "description": "Admin. A one-time link that signs a browser in to the web app. Works once, for 15 minutes.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "base": {
+          "type": "string",
+          "description": "Address people open Townsquare at (default: this request's)"
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "make_a_sign-in_link_for_a_person"
+   }
+  },
+  "/whatsapp/channels": {
+   "post": {
+    "tags": [
+     "WhatsApp"
+    ],
+    "summary": "Create a WhatsApp channel",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "jid": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "502": {
+      "$ref": "#/components/responses/E502"
+     },
+     "503": {
+      "$ref": "#/components/responses/E503"
+     }
+    },
+    "description": "Admin. Creates a channel you own. It starts off the allowlist.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "description": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "create_a_whatsapp_channel"
+   }
+  },
+  "/telegram/bot": {
+   "put": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Set Telegram bot token",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "restart_needed": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Token from @BotFather. Starts the bot, or applies after POST /restart if one is running.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "token": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "token"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "set_telegram_bot_token"
+   },
+   "delete": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Remove Telegram bot token",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "restart_needed": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     }
+    },
+    "description": "Admin.",
+    "operationId": "remove_telegram_bot_token"
+   }
+  },
   "/whatsapp": {
    "get": {
     "tags": [
@@ -3727,6 +4070,37 @@
       "items": {
        "$ref": "#/components/schemas/ChangelogEntry"
       }
+     },
+     "install_at": {
+      "type": "integer",
+      "description": "Unix time of the next moment with no post due within 15 minutes either side; automatic updates and restarts wait for it"
+     }
+    }
+   },
+   "ServerConfig": {
+    "type": "object",
+    "properties": {
+     "listen": {
+      "type": "string",
+      "description": "host:port for the web app and API (default 127.0.0.1:8890)"
+     },
+     "tailscale": {
+      "type": "string",
+      "description": "tailnet machine name, \"\" = off"
+     },
+     "running": {
+      "type": "object",
+      "properties": {
+       "listen": {
+        "type": "string"
+       },
+       "tailscale": {
+        "type": "string"
+       }
+      }
+     },
+     "restart_needed": {
+      "type": "boolean"
      }
     }
    },

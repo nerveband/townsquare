@@ -15,12 +15,12 @@ func Supported() bool { return true }
 func Enabled() bool { return exec.Command("reg", "query", runKey, "/v", "Townsquare").Run() == nil }
 
 // Enable adds a Run entry for the next login.
-func Enable(dataDir, listen string) error {
+func Enable(dataDir string) error {
 	bin := Installed()
 	if bin == "" {
 		return fmt.Errorf("can't find the Townsquare program")
 	}
-	cmd := fmt.Sprintf(`"%s" --data "%s" serve --listen %s`, bin, dataDir, listen)
+	cmd := fmt.Sprintf(`"%s" --data "%s" serve`, bin, dataDir)
 	out, err := exec.Command("reg", "add", runKey, "/v", "Townsquare", "/t", "REG_SZ", "/d", cmd, "/f").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("reg add: %s", strings.TrimSpace(string(out)))

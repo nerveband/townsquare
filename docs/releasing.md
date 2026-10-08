@@ -37,10 +37,9 @@ self-updates), so a mistake ships everywhere within hours. Follow the steps in o
    - `releases/latest/download/latest.json` is this version;
    - the previous release, as installed, downloads this one, verifies it and runs it.
    If verification fails, stop and fix with a new patch release. Don't delete the release.
-6. **Production.** The production host runs a release build, so it updates itself within 6
-   hours, restarting only when no post is due within 15 minutes. To update right away:
-   `bin/townsquare update` (downloads it; the running server switches at its next 10-minute
-   check). Then confirm the version: `curl -sI https://<host>/api/auth/status | grep -i version`.
+6. **Production.** The production host runs the released Mac app, so it updates itself within
+   6 hours at the first moment with no post due within 15 minutes. To update right away, run
+   `make deploy` (it waits for the same gap) and confirm the version it prints.
 7. **Tell the owner** the version, the release link, and anything they must do.
 
 Downloads built by `scripts/package.sh` (macOS only): plain binaries (darwin arm64/amd64, linux
@@ -48,15 +47,23 @@ amd64/arm64/armv7, windows amd64), `Townsquare-vX.Y.Z-mac.dmg`, `.deb` for amd64
 `SHA256SUMS`, and the signed `latest.json` (+ `.sig`) with the newest changelog sections and the
 shared Telegram app id.
 
-## Deploying unreleased code
+## Production runs the released Mac app (dogfooding)
 
-`make deploy` on the production host backs up the database, builds the checkout, restarts the
-launchd service (`scripts/service.sh install`) or the tmux session, and checks the version. It
-refuses when a post is due within 15 minutes (`FORCE=1` overrides). A build of an untagged
-commit is a dev build: it reports updates but never installs them, so production stops
-auto-updating until a tagged build runs again (`git checkout vX.Y.Z && make deploy`, or
-`bin/townsquare update` from a release build). Host settings (listen address, tailnet name,
-`TOWNSQUARE_DEPLOY_HOST`) live in the untracked `.deploy.env`.
+Production runs exactly what users download: `/Applications/Townsquare.app` from the release
+`.dmg`, started at login by the LaunchAgent `com.townsquare.server` (the same one
+**Start when I log in** creates), with its address and tailnet name in `~/.townsquare/config.json`.
+It updates itself from releases like every other install.
+
+- `make deploy` (`scripts/deploy.sh [vX.Y.Z]`, default the latest release) installs or
+  reinstalls that app: it refuses when a post is due within 15 minutes (`FORCE=1` overrides),
+  backs up the database, checks the dmg against `SHA256SUMS`, points the service at the app,
+  saves `TOWNSQUARE_LISTEN` / `TOWNSQUARE_TAILSCALE` from the untracked `.deploy.env`, removes
+  other copies (repo builds, downloaded updates) and checks the version.
+- Unreleased code never runs in production. Test it with `bin/townsquare serve --demo` or a
+  separate data folder (`--data /tmp/ts-test`, which takes its own lock and never touches
+  production). To ship it, cut a release.
+- Only one server can use a data folder at a time (`serve.lock`), so a second copy can't
+  double-send.
 
 ## How updates work (and what not to break)
 

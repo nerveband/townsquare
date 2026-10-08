@@ -144,3 +144,43 @@ func TestChangelogEndpoint(t *testing.T) {
 		t.Fatalf("future from: %s", rec.Body.String())
 	}
 }
+
+// Updates and restarts wait for a gap with no send within 15 minutes either side.
+func TestNextFreeWindowAvoidsSends(t *testing.T) {
+	db, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{DB: db}
+	now := time.Now().UTC().Truncate(time.Minute)
+	if got := s.nextFreeWindow(t.Context(), now); !got.Equal(now) {
+		t.Fatalf("empty calendar: %v, want now", got)
+	}
+	// Sends at now+5m and now+25m: the first free minute is 15 minutes after the second.
+	for i, at := range []time.Time{now.Add(5 * time.Minute), now.Add(25 * time.Minute)} {
+		if _, err := db.ExecContext(t.Context(), `INSERT INTO posts(title,caption,media,targets,status,created_at,updated_at) VALUES('t','x','[]','["1@g.us"]','scheduled',0,0)`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.ExecContext(t.Context(), `INSERT INTO schedules(post_id,start,tz,rrule,until) VALUES(?,?,'UTC','','')`, i+1, at.Format("2006-01-02T15:04")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := now.Add(25*time.Minute + 16*time.Minute)
+	if got := s.nextFreeWindow(t.Context(), now); !got.Equal(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if b := s.busySoon(t.Context()); b == "" {
+		t.Fatal("busySoon should see the send in 5 minutes")
+	}
+	for _, c := range []struct {
+		method, path string
+		admin        bool
+	}{
+		{"GET", "/api/v1/config", false}, {"PATCH", "/api/v1/config", true}, {"POST", "/api/v1/restart", true},
+		{"PUT", "/api/v1/telegram/bot", true}, {"POST", "/api/v1/login-link", true}, {"POST", "/api/v1/whatsapp/channels", true},
+	} {
+		if got := needsAdmin(httptest.NewRequest(c.method, c.path, nil)); got != c.admin {
+			t.Errorf("needsAdmin(%s %s) = %v", c.method, c.path, got)
+		}
+	}
+}

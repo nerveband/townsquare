@@ -156,3 +156,23 @@ my.telegram.org; the id can change over the air.
 
 `GET/PUT /api/v1/autostart {"enabled": true}` (admin) turns "start when I log in" on or off.
 `POST /api/v1/quit` (admin) stops the server.
+
+Everything else an install needs is in the API too, so an agent can run Townsquare with no
+screen (admin keys):
+
+```
+GET   /api/v1/config                               (listen address and tailnet name, saved and running)
+PATCH /api/v1/config  {"listen": "0.0.0.0:8890", "tailscale": "townsquare"}   then POST /api/v1/restart
+POST  /api/v1/restart {"force": false}             (waits for a gap with no post due, like updates)
+PUT   /api/v1/telegram/bot {"token": "..."}        (bot from @BotFather; DELETE removes it)
+POST  /api/v1/login-link {"base": "https://..."}   (one-time sign-in link to give a person)
+POST  /api/v1/whatsapp/channels {"name": "...", "description": "..."}
+```
+
+The first admin key still has to come from the computer running Townsquare
+(`townsquare apikey create NAME --scope admin`) or a signed-in browser.
+
+**Restarts never get in the way of sends.** Automatic updates, `POST /restart` and
+`POST /update/install` wait until no post is due within 15 minutes either side and nothing is
+being sent (`GET /update` → `install_at`). A new version is test-run before the switch; if it
+fails, or doesn't start properly twice, it is skipped and the current version keeps running.

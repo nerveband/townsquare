@@ -17,6 +17,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/nerveband/townsquare/internal/appconfig"
+	"github.com/nerveband/townsquare/internal/autostart"
 	"github.com/nerveband/townsquare/internal/server"
 	"github.com/nerveband/townsquare/internal/store"
 	"github.com/nerveband/townsquare/internal/tg"
@@ -42,6 +44,8 @@ Usage:
   townsquare apikey create NAME [--scope read|write|admin] | list | revoke ID
   townsquare allow [JID...]           show or extend the send allowlist (~/.townsquare/allow.txt)
   townsquare channel-create --name NAME [--desc TEXT]
+  townsquare config [set listen=HOST:PORT tailscale=NAME]   server address settings (restart to apply)
+  townsquare autostart [on|off]        start Townsquare when you log in (LaunchAgent, systemd user service, Run key)
   townsquare update [--check]          download the newest release (used on the next start)
   townsquare due [--within 15m]        list sends due within that window either side of now (exit 3 if any)
 
@@ -65,19 +69,22 @@ func main() {
 	_ = global.Parse(argv)
 	args := global.Args()
 
+	appMode := isAppLaunch(args)
+
 	// A downloaded update, if newer, runs instead of this binary (it never returns then).
-	update.Handoff(*dataDir, version.Version)
+	update.Handoff(*dataDir, version.Version, appMode || args[0] == "serve")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM) // SIGTERM: launchd/systemd stop
 	defer stop()
 
-	appMode := isAppLaunch(args)
+	cfg, err := appconfig.Load(*dataDir)
+	check(err)
 	if appMode {
-		if running(appAddr) {
-			openSignedIn(ctx, *dataDir, appAddr)
+		if addr := localAddr(cfg.ListenAddr()); running(addr) {
+			openSignedIn(ctx, *dataDir, addr)
 			return
 		}
-		args = []string{"serve", "--listen", appAddr}
+		args = []string{"serve"}
 		if runtime.GOOS == "windows" {
 			fmt.Println("Townsquare is starting. Keep this window open; close it to stop Townsquare.")
 		}
@@ -88,6 +95,41 @@ func main() {
 		return
 	case "version":
 		fmt.Println("townsquare", version.String())
+		return
+	case "config":
+		// townsquare config [get] | set KEY=VALUE...   (listen, tailscale; restart to apply)
+		if len(args) >= 2 && args[1] == "set" {
+			for _, kv := range args[2:] {
+				k, v, ok := strings.Cut(kv, "=")
+				switch {
+				case !ok:
+					check(fmt.Errorf("use KEY=VALUE, for example listen=0.0.0.0:8890"))
+				case k == "listen":
+					cfg.Listen = v
+				case k == "tailscale":
+					cfg.Tailscale = v
+				default:
+					check(fmt.Errorf("unknown key %q (listen, tailscale)", k))
+				}
+			}
+			check(appconfig.Save(*dataDir, cfg))
+		}
+		b, _ := json.MarshalIndent(map[string]string{"listen": cfg.ListenAddr(), "tailscale": cfg.Tailscale}, "", "  ")
+		fmt.Println(string(b))
+		return
+	case "autostart":
+		// townsquare autostart [on|off]: start Townsquare (serve) when you log in
+		if len(args) >= 2 {
+			switch args[1] {
+			case "on":
+				check(autostart.Enable(*dataDir))
+			case "off":
+				check(autostart.Disable())
+			default:
+				check(fmt.Errorf("use: townsquare autostart [on|off]"))
+			}
+		}
+		fmt.Printf("start at login: %v (program: %s)\n", autostart.Enabled(), autostart.Installed())
 		return
 	case "due":
 		// Used by scripts/deploy.sh: never restart Townsquare right around a send.
@@ -202,8 +244,8 @@ func main() {
 
 	case "serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
-		listen := fs.String("listen", "127.0.0.1:8890", "address for the web app and API (empty to disable)")
-		tsName := fs.String("tailscale", "", "also join the tailnet as this machine name and serve https://NAME.<tailnet>.ts.net")
+		listen := fs.String("listen", cfg.ListenAddr(), "address for the web app and API (empty to disable; default from `townsquare config`)")
+		tsName := fs.String("tailscale", cfg.Tailscale, "also join the tailnet as this machine name and serve https://NAME.<tailnet>.ts.net")
 		demo := fs.Bool("demo", false, "sample data, never connects to WhatsApp, never sends (uses <data>-demo)")
 		_ = fs.Parse(rest)
 		if *demo {
@@ -212,15 +254,30 @@ func main() {
 			cli, err = wa.Open(ctx, *dataDir, *logLevel)
 			check(err)
 		}
+		// One server per data folder: two would both send every post.
+		if ok, err := appconfig.Lock(*dataDir); err != nil || !ok {
+			if appMode {
+				openSignedIn(ctx, *dataDir, localAddr(*listen))
+				return
+			}
+			check(fmt.Errorf("another Townsquare is already running with %s (stop it first)", *dataDir))
+		}
 		db, err := store.Open(*dataDir)
 		check(err)
 		ctx, cancelServe := context.WithCancel(ctx)
 		defer cancelServe()
 		restart := make(chan string, 1)
-		srv := &server.Server{DB: db, WA: cli, DataDir: *dataDir, UI: web.FS(), Demo: *demo, Restart: restart, AppMode: appMode, Listen: *listen}
+		srv := &server.Server{DB: db, WA: cli, DataDir: *dataDir, UI: web.FS(), Demo: *demo, Restart: restart, AppMode: appMode, Listen: *listen, Tailnet: *tsName}
 		if !*demo {
 			srv.Updater = update.New(*dataDir, version.Version)
 			go srv.RunUpdates(ctx)
+			go func() { // a version that serves for 2 minutes is good; keep using it
+				select {
+				case <-ctx.Done():
+				case <-time.After(2 * time.Minute):
+					update.MarkHealthy(*dataDir, version.Version)
+				}
+			}()
 		}
 		if *demo {
 			check(srv.SeedDemo(ctx))
@@ -256,10 +313,11 @@ func main() {
 			go func() { errs <- hs.ListenAndServe() }()
 			if appMode {
 				go func() {
-					for i := 0; i < 50 && !running(*listen); i++ {
+					addr := localAddr(*listen)
+					for i := 0; i < 50 && !running(addr); i++ {
 						time.Sleep(200 * time.Millisecond)
 					}
-					openSignedIn(ctx, *dataDir, *listen)
+					openSignedIn(ctx, *dataDir, addr)
 				}()
 			}
 		}

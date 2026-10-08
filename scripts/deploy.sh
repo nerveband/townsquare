@@ -1,43 +1,45 @@
 #!/usr/bin/env bash
-# Deploy the current checkout on this host: back up the database,
-# build, restart the app (the launchd service if installed, see scripts/service.sh, else the
-# tmux session "townsquare"), and verify the new version answers.
+# Install a released Mac app on the production host, exactly what users download
+# (dogfooding): scripts/deploy.sh [vX.Y.Z]   (default: the latest release)
+#
+#  1. refuses if a post is due within 15 minutes (FORCE=1 overrides)
+#  2. backs up the database
+#  3. downloads Townsquare-vX.Y.Z-mac.dmg, checks it against SHA256SUMS
+#  4. installs /Applications/Townsquare.app, saves the server address settings
+#     (TOWNSQUARE_LISTEN / TOWNSQUARE_TAILSCALE from .deploy.env) into config.json
+#  5. points the launchd service (start at login, restart if it stops) at the app
+#  6. removes other copies (old builds, downloaded updates) and checks the version
+#
+# After this, the app keeps itself up to date from new releases. Unreleased code
+# never runs in production: test it with `serve --demo` or a local data folder.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# Host-specific settings live in an untracked .deploy.env (TOWNSQUARE_LISTEN, TOWNSQUARE_TAILSCALE,
-# TOWNSQUARE_DEPLOY_HOST to refuse running anywhere else).
 [ -f .deploy.env ] && . ./.deploy.env
 if [ -n "${TOWNSQUARE_DEPLOY_HOST:-}" ] && [ "$(hostname -s)" != "$TOWNSQUARE_DEPLOY_HOST" ]; then
   echo "deploy.sh runs on $TOWNSQUARE_DEPLOY_HOST only (this is $(hostname -s))"; exit 1
 fi
+[ "$(uname -s)" = Darwin ] || { echo "deploy.sh installs the Mac app"; exit 1; }
 DATA="${TOWNSQUARE_DATA:-$HOME/.townsquare}"
 LISTEN="${TOWNSQUARE_LISTEN:-127.0.0.1:8890}"
-TSNAME="${TOWNSQUARE_TAILSCALE:-townsquare}"
-LOG="${TOWNSQUARE_LOG:-$HOME/.townsquare/serve.log}"
+TSNAME="${TOWNSQUARE_TAILSCALE:-}"
+APP=/Applications/Townsquare.app
+BIN="$APP/Contents/MacOS/townsquare-server"
+LABEL=com.townsquare.server
+DOMAIN="gui/$(id -u)"
+V="${1:-$(gh release view --json tagName --jq .tagName)}"
 
-# Never restart right around a send (FORCE=1 to override).
-# (Exit code 3 = something is due; older binaries without `due` are ignored.)
-if [ -z "${FORCE:-}" ] && [ -x bin/townsquare ]; then
-  code=0; bin/townsquare --data "$DATA" due --within 15m >/dev/null 2>&1 || code=$?
-  if [ "$code" = 3 ]; then
-    bin/townsquare --data "$DATA" due --within 15m || true
-    echo "a post is due within 15 minutes; deploy after it goes out (or FORCE=1 make deploy)"; exit 1
+# 1. Never restart right around a send. (Exit code 3 = something is due.)
+for b in "$BIN" bin/townsquare; do
+  [ -x "$b" ] || continue
+  code=0; "$b" --data "$DATA" due --within 15m >/dev/null 2>&1 || code=$?
+  if [ "$code" = 3 ] && [ -z "${FORCE:-}" ]; then
+    "$b" --data "$DATA" due --within 15m || true
+    echo "a post is due within 15 minutes; deploy after it goes out (or FORCE=1)"; exit 1
   fi
-fi
+  break
+done
 
-# Stop the running app (and the pre-rename "wacal" session) before touching data.
-SERVICE=""
-[ -f "$HOME/Library/LaunchAgents/com.townsquare.server.plist" ] && SERVICE=1
-[ -n "$SERVICE" ] && scripts/service.sh stop
-tmux kill-session -t townsquare 2>/dev/null || true
-tmux kill-session -t wacal 2>/dev/null || true
-sleep 1
-
-# One-time move from the old name: ~/.wacal -> ~/.townsquare (old path stays as a symlink).
-if [ -d "$HOME/.wacal" ] && [ ! -L "$HOME/.wacal" ] && [ ! -e "$DATA" ]; then
-  mv "$HOME/.wacal" "$DATA" && ln -s "$DATA" "$HOME/.wacal" && echo "moved ~/.wacal to $DATA"
-fi
-
+# 2. Back up the database.
 if [ -f "$DATA/app.db" ]; then
   mkdir -p "$DATA/backups"
   B="$DATA/backups/app-$(date +%Y%m%d-%H%M%S).db"
@@ -45,20 +47,34 @@ if [ -f "$DATA/app.db" ]; then
   ls -1t "$DATA"/backups/app-*.db | tail -n +21 | xargs -r rm -f   # keep the newest 20
 fi
 
-scripts/build.sh "${1:-}" "" bin/townsquare.new
-mv bin/townsquare.new bin/townsquare
-VERSION="$(bin/townsquare version | awk '{print $2}')"
+# 3. Download and check the release's Mac app.
+TMP="$(mktemp -d)"; trap 'hdiutil detach -quiet "$TMP/mnt" 2>/dev/null || true; rm -rf "$TMP"' EXIT
+DMG="Townsquare-$V-mac.dmg"
+gh release download "$V" --pattern "$DMG" --pattern SHA256SUMS --dir "$TMP"
+( cd "$TMP" && grep " $DMG\$" SHA256SUMS | shasum -a 256 -c - >/dev/null ) || { echo "checksum mismatch for $DMG"; exit 1; }
+echo "✓ downloaded $DMG (checksum ok)"
 
-if [ -n "$SERVICE" ]; then
-  scripts/service.sh start
-else
-  tmux new-session -d -s townsquare "cd '$PWD' && ./bin/townsquare --data '$DATA' serve --listen '$LISTEN' --tailscale '$TSNAME' 2>&1 | tee -a '$LOG'"
-fi
+# 4. Stop the service, install the app, save settings.
+launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+tmux kill-session -t townsquare 2>/dev/null || true
+sleep 2
+hdiutil attach -quiet -nobrowse -readonly -mountpoint "$TMP/mnt" "$TMP/$DMG"
+rm -rf "$APP.new" && cp -R "$TMP/mnt/Townsquare.app" "$APP.new"
+rm -rf "$APP" && mv "$APP.new" "$APP"
+xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+"$BIN" --data "$DATA" config set "listen=$LISTEN" "tailscale=$TSNAME" >/dev/null
 
-for i in $(seq 1 20); do
-  got="$(curl -s -m 2 "http://$LISTEN/api/v1/" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("app_version",""))' 2>/dev/null || true)"
-  if [ "$got" = "$VERSION" ]; then echo "✓ deployed $VERSION (http://$LISTEN${TSNAME:+, tailnet name $TSNAME})"; exit 0; fi
+# 5. The service runs the app's own program (address and tailnet come from config.json).
+"$BIN" --data "$DATA" autostart on >/dev/null
+launchctl bootstrap "$DOMAIN" "$HOME/Library/LaunchAgents/$LABEL.plist"
+
+# 6. One copy only: no repo builds, no older downloaded updates.
+rm -f bin/townsquare bin/townsquare.new
+rm -rf "$DATA/bin"
+
+for i in $(seq 1 30); do
+  got="$(curl -s -m 3 -D - -o /dev/null "http://$LISTEN/api/auth/status" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-townsquare-version"{print $2}')"
+  [ "$got" = "$V" ] && { echo "✓ running $V from $APP (http://$LISTEN${TSNAME:+, tailnet name $TSNAME})"; exit 0; }
   sleep 1
 done
-echo "✗ new version did not come up; see $LOG" >&2
-exit 1
+echo "✗ $V didn't answer at http://$LISTEN; see $DATA/serve.log"; exit 1

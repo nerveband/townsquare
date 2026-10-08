@@ -127,3 +127,25 @@ func exeSuffix() string {
 	}
 	return ""
 }
+
+func TestBadVersionIsSkipped(t *testing.T) {
+	priv := testKey(t)
+	srv := fakeRelease(t, "v0.7.0", []byte("x"), priv)
+	defer srv.Close()
+	dir := t.TempDir()
+	u := New(dir, "v0.6.0")
+	u.Base = srv.URL
+	if _, err := u.Update(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// "x" is not a program: the probe fails, marks it bad, and it is never downloaded again.
+	if err := Probe(dir, "v0.6.0"); err == nil {
+		t.Fatal("probe passed for a broken binary")
+	}
+	if _, ok := StagedPath(dir, "v0.6.0"); ok || !IsBad(dir, "v0.7.0") {
+		t.Fatal("broken version still staged")
+	}
+	if _, err := u.Update(context.Background()); err == nil {
+		t.Fatal("bad version downloaded again")
+	}
+}

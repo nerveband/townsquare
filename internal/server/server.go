@@ -41,7 +41,8 @@ type Server struct {
 	Updater *update.Updater
 	Restart chan string // main restarts ("update") or stops ("quit") on request
 	AppMode bool        // started by opening the app; Settings offers Quit
-	Listen  string      // address the web app listens on (for start at login)
+	Listen  string      // address the web app listens on now
+	Tailnet string      // tailnet machine name now ("" = off)
 
 	mu        sync.Mutex
 	connected bool
@@ -125,6 +126,13 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/telegram/app", s.telegramApp)
 	m.HandleFunc("DELETE /api/telegram/app", s.telegramAppReset)
 	m.HandleFunc("GET /api/changelog", s.changelogHandler)
+	m.HandleFunc("GET /api/config", s.serverConfig)
+	m.HandleFunc("PATCH /api/config", s.patchServerConfig)
+	m.HandleFunc("POST /api/restart", s.restartServer)
+	m.HandleFunc("PUT /api/telegram/bot", s.setBotToken)
+	m.HandleFunc("DELETE /api/telegram/bot", s.removeBotToken)
+	m.HandleFunc("POST /api/login-link", s.loginLinkHandler)
+	m.HandleFunc("POST /api/whatsapp/channels", s.createChannel)
 	if s.UI != nil {
 		files := http.FileServer(http.FS(s.UI))
 		m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

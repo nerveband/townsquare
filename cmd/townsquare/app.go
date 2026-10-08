@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,9 +15,18 @@ import (
 	"github.com/nerveband/townsquare/internal/store"
 )
 
-// appAddr is where the app (opened from the Dock, Finder, Start menu or a
-// double-click) serves the web app.
-const appAddr = "127.0.0.1:8890"
+// localAddr turns a listen address into one this computer can open in a
+// browser (0.0.0.0 and :8890 become 127.0.0.1).
+func localAddr(listen string) string {
+	host, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		return listen
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return net.JoinHostPort(host, port)
+}
 
 // isAppLaunch reports a start with no command: opening Townsquare.app or
 // double-clicking townsquare.exe. macOS may add a -psn_ argument.

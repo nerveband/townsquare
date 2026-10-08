@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -201,6 +202,9 @@ func (u *Updater) Download(ctx context.Context, m *Manifest) (string, error) {
 	if strings.ContainsAny(f.Name, `/\`) || f.Name == "" || len(f.SHA256) != 64 {
 		return "", errors.New("latest.json: bad file entry")
 	}
+	if IsBad(u.DataDir, m.Version) {
+		return "", fmt.Errorf("%s failed to start here before; waiting for a newer release", m.Version)
+	}
 	if st, ok := ReadStaged(u.DataDir); ok && st.Version == m.Version {
 		return st.Version, nil
 	}
@@ -306,7 +310,12 @@ func StagedPath(dataDir, current string) (string, bool) {
 // Handoff runs a newer staged binary in place of this one, if there is one. It
 // returns only when there is nothing to hand off to (or starting it failed).
 // Builds from source (dev versions) never hand off.
-func Handoff(dataDir, current string) {
+//
+// server is true for `serve` (and opening the app). A server that starts a new
+// version but never reports healthy (MarkHealthy) twice in a row gets that
+// version marked bad and runs the installed one instead, so a broken update
+// can't keep Townsquare down and miss sends.
+func Handoff(dataDir, current string, server bool) {
 	if os.Getenv(handoffEnv) != "" || !IsRelease(current) {
 		return
 	}
@@ -314,9 +323,98 @@ func Handoff(dataDir, current string) {
 	if !ok {
 		return
 	}
+	st, _ := ReadStaged(dataDir)
+	if server {
+		h := readHealth(dataDir)
+		if h.Version != st.Version {
+			h = health{Version: st.Version}
+		}
+		if !h.Healthy && h.Attempts >= 2 {
+			markBad(dataDir, st.Version)
+			fmt.Fprintln(os.Stderr, "update:", st.Version, "didn't start properly twice; running", current, "instead")
+			return
+		}
+		if !h.Healthy {
+			h.Attempts++
+			writeHealth(dataDir, h)
+		}
+	}
 	if err := run(p, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "update: couldn't start", p+":", err, "(running the installed version)")
 	}
+}
+
+type health struct {
+	Version  string `json:"version"`
+	Attempts int    `json:"attempts"`
+	Healthy  bool   `json:"healthy"`
+}
+
+func healthPath(dataDir string) string { return filepath.Join(dataDir, "bin", "health.json") }
+
+func readHealth(dataDir string) health {
+	var h health
+	b, _ := os.ReadFile(healthPath(dataDir))
+	_ = json.Unmarshal(b, &h)
+	return h
+}
+
+func writeHealth(dataDir string, h health) {
+	b, _ := json.Marshal(h)
+	_ = writeAtomic(healthPath(dataDir), b)
+}
+
+// MarkHealthy records that this version's server started and has been running
+// fine, so later starts keep using it.
+func MarkHealthy(dataDir, version string) {
+	h := readHealth(dataDir)
+	if h.Version == version && h.Healthy {
+		return
+	}
+	if st, ok := ReadStaged(dataDir); ok && st.Version == version {
+		writeHealth(dataDir, health{Version: version, Healthy: true})
+	}
+}
+
+// markBad stops a version from being used or downloaded again.
+func markBad(dataDir, version string) {
+	_ = os.Remove(filepath.Join(dataDir, "bin", "current.json"))
+	f, err := os.OpenFile(filepath.Join(dataDir, "bin", "bad.txt"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err == nil {
+		fmt.Fprintln(f, version)
+		f.Close()
+	}
+}
+
+// IsBad reports a version that failed to start before.
+func IsBad(dataDir, version string) bool {
+	b, _ := os.ReadFile(filepath.Join(dataDir, "bin", "bad.txt"))
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.TrimSpace(l) == version {
+			return true
+		}
+	}
+	return false
+}
+
+// Probe runs the staged binary's `version` command and checks it answers with
+// the expected version, before the server shuts down to switch to it.
+func Probe(dataDir, current string) error {
+	p, ok := StagedPath(dataDir, current)
+	if !ok {
+		return errors.New("no update is ready")
+	}
+	st, _ := ReadStaged(dataDir)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, p, "version")
+	cmd.Env = append(os.Environ(), handoffEnv+"=1")
+	out, err := cmd.Output()
+	if err != nil || !strings.Contains(string(out), st.Version) {
+		markBad(dataDir, st.Version)
+		return fmt.Errorf("%s doesn't run on this computer (%v); skipped it", st.Version, err)
+	}
+	return nil
 }
 
 // Restart replaces this process (same arguments) with the staged update when
@@ -324,11 +422,12 @@ func Handoff(dataDir, current string) {
 // database and listeners.
 func Restart(dataDir, current string) error {
 	if p, ok := StagedPath(dataDir, current); ok && IsRelease(current) {
-		return run(p, os.Args[1:])
+		err := run(p, os.Args[1:])
+		fmt.Fprintln(os.Stderr, "update: couldn't start", p+":", err, "(restarting the installed version)")
 	}
-	p, err := os.Executable()
-	if err != nil {
-		return err
+	p := installed()
+	if p == "" {
+		return errors.New("can't find the Townsquare program")
 	}
 	return run(p, os.Args[1:])
 }

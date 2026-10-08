@@ -22,14 +22,14 @@ func Supported() bool { return true }
 
 // Enable writes the LaunchAgent. It takes effect at the next login, so it never
 // starts a second copy next to the one already running.
-func Enable(dataDir, listen string) error {
+func Enable(dataDir string) error {
 	bin := Installed()
 	if bin == "" {
 		return fmt.Errorf("can't find the Townsquare program")
 	}
 	home, _ := os.UserHomeDir()
 	esc := html.EscapeString
-	args := []string{bin, "--data", dataDir, "serve", "--listen", listen}
+	args := []string{bin, "--data", dataDir, "serve"} // address and tailnet come from config.json
 	var b strings.Builder
 	for _, a := range args {
 		b.WriteString("<string>" + esc(a) + "</string>")

@@ -1,0 +1,53 @@
+# Every push and pull request: the full check on Linux, and build + tests on the
+# real macOS and Windows runners, so every platform we ship is tested each time.
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: make check (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/ui/package-lock.json
+      - run: scripts/check.sh
+
+  platforms:
+    name: build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build -o townsquare-ci${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/townsquare
+      - name: the program starts and answers
+        shell: bash
+        run: |
+          exe=./townsquare-ci; [ "$RUNNER_OS" = Windows ] && exe=./townsquare-ci.exe
+          $exe version
+          $exe --data "$RUNNER_TEMP/ts" config set listen=127.0.0.1:8890
+          ($exe --data "$RUNNER_TEMP/ts" serve --demo > "$RUNNER_TEMP/serve.log" 2>&1 &)
+          for i in $(seq 1 150); do curl -fs -o /dev/null http://127.0.0.1:8890/api/auth/status && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8890/api/auth/status || { cat "$RUNNER_TEMP/serve.log"; exit 1; }
+          curl -fsS -o /dev/null http://127.0.0.1:8890/
+          curl -fsS http://127.0.0.1:8890/api/v1/openapi.json -o /dev/null

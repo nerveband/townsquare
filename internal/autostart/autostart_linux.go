@@ -30,7 +30,7 @@ func Enabled() bool {
 }
 
 // Enable writes (or reuses) the systemd user service and enables it for the next login.
-func Enable(dataDir, listen string) error {
+func Enable(dataDir string) error {
 	bin := Installed()
 	if bin == "" {
 		return fmt.Errorf("can't find the Townsquare program")
@@ -41,13 +41,13 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=%q --data %q serve --listen %q
+ExecStart=%q --data %q serve
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=default.target
-`, bin, dataDir, listen)
+`, bin, dataDir)
 	if err := os.MkdirAll(filepath.Dir(unitPath()), 0o755); err != nil {
 		return err
 	}

@@ -110,6 +110,8 @@
     if (tab === 'general' && wa?.linked && !wa.connected) waTimer = setTimeout(loadWA, 2000)
   }
   async function waLink() { waBusy = true; try { wa = await api('POST', '/api/whatsapp/link', { phone: waPhone }); loadWA() } catch (e) { toast(e.message) } finally { waBusy = false } }
+  let chName = $state('')
+  async function createChannel() { try { const r = await api('POST', '/api/whatsapp/channels', { name: chName }); chName = ''; toast(`Created ${r.name}. Allow it in Groups & safety to post there.`); setTimeout(loadTargets, 3000) } catch (e) { toast(e.message) } }
   async function waLogout() { waSure = false; try { wa = await api('POST', '/api/whatsapp/logout'); toast('WhatsApp unlinked') } catch (e) { toast(e.message) } }
 
   // Updates, start at login, quit
@@ -153,6 +155,9 @@
     tgOwn = false
   }
   async function tgSaveApp() { tgBusy = true; try { await tgAppDone(await api('POST', '/api/telegram/app', tgApp)) } catch (e) { toast(e.message) } finally { tgBusy = false } }
+  let botTok = $state('')
+  async function saveBot() { try { const r = await api('PUT', '/api/telegram/bot', { token: botTok }); botTok = ''; toast(r.restart_needed ? 'Saved. Restart Townsquare (Settings → Access) to use it.' : 'Bot connected'); loadTG() } catch (e) { toast(e.message) } }
+  async function removeBot() { try { await api('DELETE', '/api/telegram/bot'); toast('Bot token removed'); loadTG() } catch (e) { toast(e.message) } }
   async function tgResetApp() { tgBusy = true; try { await tgAppDone(await api('DELETE', '/api/telegram/app')) } catch (e) { toast(e.message) } finally { tgBusy = false } }
 
   // API keys
@@ -162,7 +167,23 @@
   async function loadKeys() { keys = await api('GET', '/api/keys') }
   let sessions = $state([])
   async function loadSessions() { try { sessions = await api('GET', '/api/sessions') } catch { sessions = [] } }
-  $effect(() => { if (tab === 'api') { loadKeys(); loadSessions() } })
+  $effect(() => { if (tab === 'api') { loadKeys(); loadSessions(); loadCfg() } })
+  // Server address, restart, sign-in links
+  let cfg = $state(null)
+  let cfgEdit = $state({ listen: '', tailscale: '' })
+  let link = $state('')
+  async function loadCfg() { try { cfg = await api('GET', '/api/config'); cfgEdit = { listen: cfg.listen, tailscale: cfg.tailscale } } catch { cfg = null } }
+  async function saveCfg() { try { cfg = await api('PATCH', '/api/config', cfgEdit); toast('Saved. Restart Townsquare to use it.') } catch (e) { toast(e.message) } }
+  async function restartNow(force = false) {
+    try {
+      await api('POST', '/api/restart', { force })
+      toast('Restarting… the page reconnects on its own.')
+    } catch (e) {
+      if (/due within|being sent/.test(e.message)) toast(e.message, [{ label: 'Restart anyway', run: () => restartNow(true) }], 8000)
+      else toast(e.message)
+    }
+  }
+  async function makeLink() { try { link = (await api('POST', '/api/login-link', {})).link; await navigator.clipboard?.writeText(link).catch(() => {}); toast('Sign-in link copied. It works once, for 15 minutes.') } catch (e) { toast(e.message) } }
   async function signOut(d) {
     if (d.current) { await api('POST', '/api/auth/logout'); location.reload(); return }
     await api('DELETE', `/api/sessions/${d.id}`); toast('Signed out that device'); loadSessions()
@@ -226,6 +247,9 @@
             {:else}<button class="btn sm" onclick={() => (waSure = true)}>Unlink</button>{/if}
           {/if}
         </p>
+        {#if wa?.linked && app.connected && !app.demo}
+          <div class="row"><input class="inp" bind:value={chName} placeholder="New channel name" style="max-width:240px" aria-label="New WhatsApp channel name" onkeydown={(e) => e.key === 'Enter' && chName.trim() && createChannel()} /><button class="btn sm" onclick={createChannel} disabled={!chName.trim()}>Create WhatsApp channel</button></div>
+        {/if}
       {/if}
 
       <h3>Townsquare</h3>
@@ -249,7 +273,7 @@
           {#if auto?.supported}<label class="ck"><input type="checkbox" checked={auto.enabled} onchange={(e) => setLogin(e.target.checked)} /> Start when I log in</label>{/if}
           {#if auto?.app_mode}<span style="flex:1"></span><button class="btn" onclick={quitApp}>Quit Townsquare</button>{/if}
         </div>
-        <p class="muted">Automatic updates are checked every 6 hours, signed and verified, and installed only when no post is due within 15 minutes.{#if upd.dev} This copy was built from source, so update it with git pull and a rebuild.{/if}</p>
+        <p class="muted">Automatic updates are checked every 6 hours, signed and verified, and installed only when no post is due within 15 minutes{#if (upd.staged || upd.available) && upd.auto && upd.install_at} (next chance: {new Date(upd.install_at * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}){/if}.{#if upd.dev} This copy was built from source, so update it with git pull and a rebuild.{/if}</p>
       {/if}
 
       <h3>Safe mode</h3>
@@ -389,14 +413,18 @@
           </div>
         {/if}
       {/if}
+      <h3>Telegram bot</h3>
       {#if tg?.bot}
-        <h3>Telegram bot</h3>
-        <p class="st"><span class="dot on"></span><b>{tg.bot.name}</b> (@{tg.bot.username}) · {tg.bot.chats} chats</p>
+        <p class="st"><span class="dot on"></span><b>{tg.bot.name}</b> (@{tg.bot.username}) · {tg.bot.chats} chats <span style="flex:1"></span><button class="btn sm" onclick={removeBot}>Remove</button></p>
         <p class="muted">Optional. Add @{tg.bot.username} as an admin to a group or channel and it shows up here with a “TG bot” badge. Send it /start to get a private test chat. Bot chats start off the allowlist.</p>
+      {:else if !app.demo}
+        <p class="muted">Optional: post as a bot instead of yourself. Create one with @BotFather in Telegram and paste its token.</p>
+        <div class="row"><input class="inp mono" type="password" bind:value={botTok} placeholder="123456:ABC..." style="max-width:320px" aria-label="Bot token" /><button class="btn" onclick={saveBot} disabled={!botTok.trim()}>Save</button></div>
       {/if}
     {:else if tab === 'api'}
       <h3>Signed-in devices</h3>
-      <p class="muted">Browsers that can use this web app. New devices sign in with a link sent to your WhatsApp.</p>
+      <p class="muted">Browsers that can use this web app. New devices sign in with a link sent to your WhatsApp, or one you make here.</p>
+      <div class="row"><button class="btn" onclick={makeLink}>Make a sign-in link</button>{#if link}<input class="inp mono" readonly value={link} onfocus={(e) => e.target.select()} aria-label="Sign-in link" />{/if}</div>
       {#each sessions as d (d.id)}
         <div class="row named">
           <b style="min-width:160px">{deviceName(d.device)}{d.current ? ' (this device)' : ''}</b>
@@ -434,6 +462,17 @@
           {#if !k.revoked_at}<button class="btn danger sm" onclick={() => revokeKey(k)}>Revoke</button>{/if}
         </div>
       {/each}
+      {#if cfg && !app.demo}
+        <h3>Server</h3>
+        <p class="muted">Where Townsquare listens. Use 0.0.0.0:8890 to reach it from other devices on your network, or a tailnet name for a private https address. Running now: {cfg.running.listen || 'not listening'}{cfg.running.tailscale ? ` and ${cfg.running.tailscale} on your tailnet` : ''}.</p>
+        <div class="row">
+          <input class="inp mono" bind:value={cfgEdit.listen} placeholder="127.0.0.1:8890" style="max-width:200px" aria-label="Listen address" />
+          <input class="inp mono" bind:value={cfgEdit.tailscale} placeholder="tailnet name (optional)" style="max-width:200px" aria-label="Tailnet name" />
+          <button class="btn" onclick={saveCfg} disabled={cfgEdit.listen === cfg.listen && cfgEdit.tailscale === cfg.tailscale}>Save</button>
+          <button class="btn {cfg.restart_needed ? 'pri' : ''}" onclick={() => restartNow()}>Restart Townsquare</button>
+        </div>
+        <p class="muted">Restarts (and updates) wait until no post is due within 15 minutes.</p>
+      {/if}
     {:else if tab === 'sets'}
       {#if editSet}
         <div class="row"><input class="inp" bind:value={editSet.name} placeholder="Set name, e.g. All chapter groups" />

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-// Label is the macOS LaunchAgent label (shared with scripts/service.sh).
+// Label is the macOS LaunchAgent label (scripts/deploy.sh uses it too).
 const Label = "com.townsquare.server"
 
 // Installed is the path of the installed binary, not a downloaded update it

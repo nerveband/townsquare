@@ -57,6 +57,13 @@ func (s *Server) v1Mux() *http.ServeMux {
 	m.HandleFunc("POST /api/v1/telegram/app", s.telegramApp)
 	m.HandleFunc("DELETE /api/v1/telegram/app", s.telegramAppReset)
 	m.HandleFunc("GET /api/v1/changelog", s.changelogHandler)
+	m.HandleFunc("GET /api/v1/config", s.serverConfig)
+	m.HandleFunc("PATCH /api/v1/config", s.patchServerConfig)
+	m.HandleFunc("POST /api/v1/restart", s.restartServer)
+	m.HandleFunc("PUT /api/v1/telegram/bot", s.setBotToken)
+	m.HandleFunc("DELETE /api/v1/telegram/bot", s.removeBotToken)
+	m.HandleFunc("POST /api/v1/login-link", s.loginLinkHandler)
+	m.HandleFunc("POST /api/v1/whatsapp/channels", s.createChannel)
 	m.HandleFunc("GET /api/v1/settings", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.DB.Settings(r.Context())) })
 	m.HandleFunc("PATCH /api/v1/settings", s.saveSettings)
 

@@ -8,7 +8,9 @@ signed self-updater. Shipped as a Mac app, Windows exe, `.deb` and plain binarie
 ## 1. UI and API ship together
 
 Every capability exists in the web UI **and** `/api/v1`, in the same change (machine-only
-things like API keys and `expect_change` are the exception). A change is done when:
+things like API keys and `expect_change` are the exception). An agent with an admin key must be
+able to set up and run Townsquare with no screen: linking accounts, settings, server address,
+updates, restarts. A change is done when:
 
 1. **One handler, two mounts.** Logic lives in `internal/server` / `internal/store`; the UI route
    (`/api/...`) and the v1 route call the same function.
@@ -23,6 +25,20 @@ things like API keys and `expect_change` are the exception). A change is done wh
    right entity keys, so it is undoable and attributed (`you`, `sender`, `api:<key>`).
 7. **Tests** for new logic, and a `CHANGELOG.md` line under `## [Unreleased]` incl. "API changes".
    Users read the changelog inside the app after every update: write it for them, in plain words.
+8. **Every platform.** It works in the Mac app, the Windows exe, the Linux `.deb` (PC and
+   Raspberry Pi) and the plain command line. OS-specific code comes in darwin, linux and windows
+   versions (`_darwin.go`, `_linux.go`, `_windows.go`, or a declared fallback). `make check` vets
+   every release target; CI (`.github/workflows/ci.yml`) builds, tests and starts the program on
+   macOS, Windows and Linux x64/arm64 and must be green.
+9. **Every surface.** Desktop, tablet and phone layouts (screenshot check in demo mode); the
+   API, so an agent can do it headless; a `townsquare` command when it is setup or upkeep
+   (config, start at login, updates); the agent guide; the README when people see it.
+10. **Review before "done".** Re-read the whole diff against items 1 to 9, the safety rules
+    below, secrets and personal data, and plain wording. Run `make check` (it also checks that
+    every v1 route has a web app route, `tools/parity.py`), push, and confirm CI is green.
+
+Releases ship every platform together from one tag, on the owner's say-so, following
+`docs/releasing.md` in order. Never release one platform alone or skip a step.
 
 ## 2. Safety (real WhatsApp groups)
 
@@ -44,8 +60,12 @@ things like API keys and `expect_change` are the exception). A change is done wh
   `~/.townsquare`, the release signing key and the Telegram app id in `~/.config/townsquare`).
   The repo is public: keep host names, IPs, phone numbers, real group ids and personal data out
   of it (tests use made-up ids).
-- Never restart or deploy production within 15 minutes of a scheduled send (`bin/townsquare
-  due`; `make deploy` checks). Production updates itself from releases on the same rule.
+- **Updates and restarts must never cost a scheduled send.** Anything that restarts the server
+  (updates, `POST /restart`, deploys) waits for a moment with no post due within 15 minutes
+  either side and nothing being sent (`busySoon` / `nextFreeWindow`, `townsquare due`), test-runs
+  a new version first, and falls back to the old one if the new one fails. Keep it that way.
+- Production runs the released Mac app (`make deploy` installs it); unreleased code never runs
+  there. Test with demo mode or a separate `--data` folder.
 
 ## 3. Where code goes
 
@@ -54,8 +74,9 @@ things like API keys and `expect_change` are the exception). A change is done wh
 send loop, stats, updates and setup · `internal/update` signed self-update and hand-off ·
 `internal/autostart` start at login per OS · `internal/changelog` reads `CHANGELOG.md` (embedded
 by the root package) · `web/ui` presentation only (the server validates everything) ·
-`tools/gen_openapi.py` is the spec source · `tools/sign`, `tools/manifest`, `tools/mkdeb.py`
-release tooling · `scripts/` check, build, package, release, verify-release, deploy, service.
+`internal/appconfig` listen address, tailnet name and the one-server lock · `tools/gen_openapi.py`
+is the spec source · `tools/sign`, `tools/manifest`, `tools/mkdeb.py` release tooling ·
+`scripts/` check, build, package, release, verify-release, deploy, telegram-app.
 
 ## 4. Rules the code won't tell you
 
