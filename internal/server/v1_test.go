@@ -187,3 +187,14 @@ func TestNextFreeWindowAvoidsSends(t *testing.T) {
 		}
 	}
 }
+
+func httptestGet(t *testing.T, h http.HandlerFunc, url string) map[string]any {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	h(rec, httptest.NewRequest("GET", url, nil))
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("%s: %v %s", url, err, rec.Body.String())
+	}
+	return out
+}

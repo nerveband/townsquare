@@ -248,7 +248,16 @@ func (s *Server) whatsappState(w http.ResponseWriter, r *http.Request) {
 	if s.WA != nil && s.WA.Store.ID != nil {
 		out["linked"] = true
 		out["number"] = s.WA.Store.ID.User
+		if s.WA.Store.PushName != "" {
+			out["name"] = s.WA.Store.PushName
+		}
 	}
+	var chats, allowed int
+	_ = s.DB.QueryRowContext(r.Context(), `SELECT COUNT(*), COALESCE(SUM(allowed),0) FROM targets WHERE platform='whatsapp' AND gone=0`).Scan(&chats, &allowed)
+	out["chats"], out["allowlisted"] = chats, allowed
+	s.mu.Lock()
+	out["connected_since"], out["last_disconnect"], out["last_sync"] = unixOrZero(s.conn.WASince), unixOrZero(s.conn.WADown), unixOrZero(s.conn.WASync)
+	s.mu.Unlock()
 	s.mu.Lock()
 	l := s.linker
 	s.mu.Unlock()

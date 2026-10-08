@@ -194,3 +194,18 @@ fails, or doesn't start properly twice, it is skipped and the current version ke
   `changed`, `unchanged` or `not_found`.
 - **No-ops.** Pausing a paused post (or resuming a scheduled one) returns `"changed": false`
   and adds nothing to history.
+
+## Taking a post back
+
+- **Undo send.** Setting `send_delay` ("0", "30", "60", "120" or "300" seconds) makes every
+  send wait that long after its time. `GET /sends/pending` lists what is waiting with
+  `seconds_left`; `POST /sends/skip` cancels one before it goes out.
+- **Delete for everyone.** `POST /sends/unsend {"post_id", "schedule_id", "occ", "chats"?, "dry_run"?}`
+  deletes what Townsquare sent, in every chat or the ones listed. Always call it with
+  `"dry_run": true` first: each chat comes back as `would_delete`, `too_old`, `not_supported`
+  (sent from Telegram's own queue), `not_sent` or `already_deleted`. WhatsApp allows this for
+  about 2.5 days (Status: 24 hours); Telegram has no limit (bot: 48 hours). It can't be undone.
+- **Fix the text.** `POST /sends/edit` with `"caption"` changes the text people already got.
+  WhatsApp: text messages only, 15 minutes. Telegram: text and captions, no limit. The post
+  itself isn't changed; edit it separately for future sends.
+- Both are recorded in history. Use them only when asked.

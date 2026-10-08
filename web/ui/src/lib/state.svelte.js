@@ -15,6 +15,8 @@ export const app = $state({
   showHistory: false, showSettings: false, showTray: false,
   viewTZ: '', // preview zone; empty = default
   composer: null, // { post, occ?, scope }
+  sent: null, // a send that went out, open in the sent-post view
+  showDrafts: false,
   peek: null, peekPinned: false,
   toast: null,
   error: '',

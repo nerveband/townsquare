@@ -29,7 +29,7 @@
   let oneDate = $state(occ ? dayKey(occ.at, tz()) : '')
   let oneTime = $state(occ ? hhmm(occ.at, tz()) : '')
 
-  let picking = $state(isNew && !targets.length)
+  let picking = $state((isNew && !targets.length) || !!c.repost)
   let uploading = $state(0)
   let err = $state('')
   let preview = $state([])
@@ -66,6 +66,12 @@
     return w.start < w.end ? hm >= w.start && hm < w.end : hm >= w.start || hm < w.end
   }
   const windows = $derived(targets.map((j) => ({ jid: j, ...quietFor(j, clientId) })))
+  // Preview as WhatsApp or Telegram. Follows the chats picked until you choose.
+  const hasTG = $derived(targets.some((j) => j.startsWith('tg')))
+  const hasWA = $derived(targets.some((j) => !j.startsWith('tg')))
+  let pvChoice = $state(localStorage.getItem('townsquare.preview') || '')
+  const pvPlatform = $derived(pvChoice || (hasTG && !hasWA ? 'telegram' : 'whatsapp'))
+  function setPv(p) { pvChoice = p; localStorage.setItem('townsquare.preview', p) }
   const inQuiet = (at) => windows.some((w) => quietAt(at, w))
   const quietHits = $derived.by(() => {
     const times = scope === 'one' ? (oneDate && oneTime ? [fromLocal(`${oneDate}T${oneTime}`, tz())] : []) : preview.map((p) => p.at)
@@ -206,6 +212,7 @@
   {/if}
 
   <div class="scroll">
+    {#if c.repost}<p class="repost">A copy of a post that already went out. Pick the chats (the same ones are ticked) and a time, then schedule it. The original stays as it was.</p>{/if}
     <section class="to">
       <span class="lbl">To</span>
       <div class="chips">
@@ -256,8 +263,14 @@
     </section>
 
     <section class="pv">
-      <div class="pvh"><span class="lbl">Preview</span><span class="muted">as it will look in WhatsApp</span></div>
-      <div class="pvchat"><WaPreview {caption} {media} time={previewTime} /></div>
+      <div class="pvh"><span class="lbl">Preview</span>
+        <span class="pvseg" role="radiogroup" aria-label="Preview as">
+          <button class:on={pvPlatform === 'whatsapp'} onclick={() => setPv('whatsapp')}>WhatsApp</button>
+          <button class:on={pvPlatform === 'telegram'} onclick={() => setPv('telegram')}>Telegram</button>
+        </span>
+        {#if hasWA && hasTG}<span class="muted">this post goes to both</span>{/if}
+      </div>
+      <div class="pvchat" class:tgbg={pvPlatform === 'telegram'}><WaPreview {caption} {media} time={previewTime} platform={pvPlatform} /></div>
     </section>
 
     <section class="when">
@@ -404,4 +417,9 @@
     footer .btn { white-space: nowrap }
     textarea { font-size: 16px }
   }
+  .repost { margin: 0 0 10px; background: var(--note); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--t900) }
+  .pvseg { display: inline-flex; background: var(--sunk); border-radius: 7px; padding: 2px; margin-left: 4px }
+  .pvseg button { border: 0; background: transparent; border-radius: 5px; padding: 2px 9px; font-size: 12px; color: var(--ink2) }
+  .pvseg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); font-weight: 600 }
+  .pvchat.tgbg { background: #C9DCE8 linear-gradient(160deg, #D6E6C9 0%, #C2D9E6 55%, #B7CFE5 100%) }
 </style>

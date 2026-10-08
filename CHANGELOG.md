@@ -6,6 +6,38 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Added
+- **Take a post back.** Open a sent post to delete it for everyone in every chat it went to
+  (WhatsApp allows about 2.5 days, Telegram has no limit), or to fix its text (WhatsApp: 15
+  minutes, text only; Telegram: any time). It first shows which chats still allow it.
+- **Undo send.** Settings → General → Undo send makes each post wait 30 seconds to 5 minutes
+  after its time. A bar at the top counts down with a Cancel button.
+- **Sent posts open a details view** instead of the editor: how it did (reach, reactions,
+  replies, a 48-hour read curve, who read it), where it went, what was sent, and **Post again**,
+  which starts a new draft with the same text, pictures and chats so you can change them.
+- **Preview as WhatsApp or Telegram.** A switch in the editor shows a post the way each app
+  shows it (Telegram puts photos into one album). One post can go to both apps.
+- **Drafts board.** "See all" next to Drafts shows every draft with its picture, text,
+  attachments, chats, tag and client. Search, sort, copy, archive or delete several at once.
+- **Stats:** hover a day on the charts to see what went out that day; **Summary…** shows the
+  text summary to copy or send. Calendar cards show their numbers as soon as stats exist.
+- **Settings → Accounts** shows WhatsApp and Telegram side by side: who's linked, connected
+  since, when chats were last loaded, refresh, test, link and unlink. General shows both.
+
+### Changed
+- Clients: quiet hours sit on their own line under each client, with the global hours shown
+  when a client uses them.
+
+### Fixed
+- The Stats page now scrolls all the way down.
+
+### API changes
+- New `POST /api/v1/sends/unsend`, `POST /sends/edit`, `GET /sends/pending`; setting
+  `send_delay`. Sends can have delivery `unsent` and an `unsent` count.
+- `GET /stats/summary` days include `items` (posts that went out that day).
+- `GET /whatsapp` adds `name`, `chats`, `allowlisted`, `connected_since`, `last_disconnect`,
+  `last_sync`; `GET /telegram` adds `last_sync`.
+
 ## [v0.7.1] - 2026-10-08
 
 ### Fixed

@@ -66,6 +66,7 @@ var defaults = map[string]string{
 	"tg_queue_hours": "0",
 	"stats_people":   "0",
 	"auto_update":    "1",
+	"send_delay":     "0",
 }
 
 var defaultTags = [][2]string{
@@ -79,7 +80,7 @@ func Open(dataDir string) (*DB, error) {
 		return nil, err
 	}
 	sdb.SetMaxOpenConns(1)
-	if _, err := sdb.Exec(schema + apiKeySchema + sessionSchema + statSchema + idempotencySchema); err != nil {
+	if _, err := sdb.Exec(schema + apiKeySchema + sessionSchema + statSchema + idempotencySchema + sentSchema); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	db := &DB{DB: sdb}

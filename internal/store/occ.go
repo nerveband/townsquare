@@ -29,6 +29,7 @@ type Occurrence struct {
 	Sent       int       `json:"sent"`
 	Failed     int       `json:"failed"`
 	Blocked    int       `json:"blocked"`
+	Unsent     int       `json:"unsent"` // deleted for everyone afterwards
 }
 
 func loc(tz string) *time.Location {
@@ -152,10 +153,14 @@ func (db *DB) AttachDeliveries(ctx context.Context, occ []Occurrence) {
 				occ[i].Failed = n
 			case "blocked", "missed":
 				occ[i].Blocked += n
+			case "unsent":
+				occ[i].Unsent = n
 			}
 		}
 		rows.Close()
 		switch {
+		case occ[i].Unsent > 0 && occ[i].Sent == 0:
+			occ[i].Delivery = "unsent" // deleted for everyone after it went out
 		case occ[i].Failed > 0:
 			occ[i].Delivery = "failed"
 		case occ[i].Sent > 0 && occ[i].Sent+occ[i].Blocked >= len(occ[i].Targets):
@@ -193,15 +198,19 @@ func (db *DB) SentToday(ctx context.Context, tz string) int {
 // DeliveryErrors returns failed/blocked rows for an occurrence.
 func (db *DB) DeliveryDetails(ctx context.Context, scheduleID int64, occ string) []map[string]string {
 	out := []map[string]string{}
-	rows, err := db.QueryContext(ctx, `SELECT jid,state,error FROM deliveries WHERE schedule_id=? AND occ=?`, scheduleID, occ)
+	rows, err := db.QueryContext(ctx, `SELECT jid,state,error,wa_id FROM deliveries WHERE schedule_id=? AND occ=?`, scheduleID, occ)
 	if err != nil {
 		return out
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var j, s, e string
-		_ = rows.Scan(&j, &s, &e)
-		out = append(out, map[string]string{"jid": j, "state": s, "error": e})
+		var j, s, e, id string
+		_ = rows.Scan(&j, &s, &e, &id)
+		m := map[string]string{"jid": j, "state": s, "error": e}
+		if id == "telegram-queue" {
+			m["via"] = "telegram-queue"
+		}
+		out = append(out, m)
 	}
 	return out
 }

@@ -111,6 +111,13 @@ expect 0 "resume" -- "$T" posts resume 1
 expect 0 "bulk" -- "$T" posts bulk --body '{"ids":[1,99999],"action":"pause"}' --yes; has "$OUT" '"not_found"' "per-item bulk results"
 expect 0 "resume again" -- "$T" posts resume 1
 
+# Taking posts back and the undo-send pause.
+expect 0 "pending" -- "$T" sends pending; has "$OUT" '"delay_seconds"' "pending sends"
+expect 6 "unsend needs --yes" -- "$T" sends unsend --post-id 2 --schedule-id 2 --occ 2026-10-07T18:30
+expect 0 "undo-send setting" -- "$T" settings update --send-delay 60
+expect 2 "undo-send values" -- "$T" settings update --send-delay 7
+expect 0 "undo-send off" -- "$T" settings update --send-delay 0
+
 # Files (artifacts) and uploads.
 expect 0 "deliver file" -- "$T" stats export --days 30 --deliver "file:$NWORK/s.csv"; [ -s "$WORK/s.csv" ] && ok || bad "csv not written"
 expect 5 "no overwrite" -- "$T" stats export --days 30 --deliver "file:$NWORK/s.csv"

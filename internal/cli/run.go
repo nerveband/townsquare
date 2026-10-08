@@ -341,6 +341,21 @@ func execute(o *opts, c *Command, rest []string) error {
 		return err
 	}
 	conn := resolveConn(o.profile, o.url, env.LocalURL)
+	if o.dryRun && c.ServerDryRun && conn.key != "" {
+		r.body["dry_run"] = true
+		r.rawBody, _ = json.Marshal(r.body)
+		resp, body, err := call(o, c, r, conn)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode >= 300 {
+			return fromHTTP(resp.StatusCode, body, "")
+		}
+		var doc map[string]any
+		_ = jsonUnmarshal(body, &doc)
+		doc["validated"], doc["scope"], doc["command"] = "server", "remote", c.Name
+		return printDoc(os.Stdout, doc, o.resolvedOutput(), isTTY(os.Stdout))
+	}
 	if o.dryRun && c.Effects != "read_only" {
 		return dryRun(o, c, r, conn)
 	}

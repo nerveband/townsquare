@@ -86,15 +86,22 @@
   async function loadTG() {
     try { tg = await api('GET', '/api/telegram') } catch (e) { tg = { status: 'error', error: e.message } }
     clearTimeout(tgTimer)
-    if (tab === 'telegram' && tg && ['qr', 'password', 'starting'].includes(tg.status)) tgTimer = setTimeout(loadTG, 1500)
+    if (tab === 'accounts' && tg && ['qr', 'password', 'starting'].includes(tg.status)) tgTimer = setTimeout(loadTG, 1500)
     if (tg?.status === 'ready') loadTargets()
   }
-  $effect(() => { if (tab === 'telegram') loadTG(); return () => clearTimeout(tgTimer) })
+  $effect(() => { if (tab === 'accounts' || tab === 'general') loadTG(); return () => clearTimeout(tgTimer) })
   async function tgLogin() { tgBusy = true; try { tg = await api('POST', '/api/telegram/login'); loadTG() } catch (e) { toast(e.message) } finally { tgBusy = false } }
   async function tgSendPw() { tgBusy = true; try { tg = await api('POST', '/api/telegram/password', { password: tgPw }); tgPw = ''; loadTG() } catch (e) { toast(e.message) } finally { tgBusy = false } }
   async function tgLogout() { await act(api('POST', '/api/telegram/logout'), 'Logged out of Telegram'); loadTG() }
   async function tgRefresh() { tgBusy = true; try { tg = await api('POST', '/api/telegram/refresh'); await loadTargets(); toast('Telegram chats refreshed') } catch (e) { toast(e.message) } finally { tgBusy = false } }
   async function tgTest() { try { await api('POST', '/api/test', { platform: 'telegram', caption: '*Townsquare* test: this went to your Saved Messages only.' }); toast('Sent a test to your Telegram Saved Messages') } catch (e) { toast(e.message) } }
+
+  const ago = (t) => {
+    const m = Math.round((Date.now() / 1000 - t) / 60)
+    return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`
+  }
+  const when = (t) => new Date(t * 1000).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  async function waTest() { try { await api('POST', '/api/test', { platform: 'whatsapp', caption: '*Townsquare* test: this went to your own chat only.' }); toast('Sent a test to Message yourself') } catch (e) { toast(e.message) } }
 
   // WhatsApp linking
   let wa = $state(null)
@@ -106,8 +113,8 @@
     try { wa = await api('GET', '/api/whatsapp') } catch { wa = null }
     clearTimeout(waTimer)
     const st = wa?.link?.state
-    if (tab === 'general' && wa && !wa.linked && (st === 'waiting' || st === 'code')) waTimer = setTimeout(loadWA, 1500)
-    if (tab === 'general' && wa?.linked && !wa.connected) waTimer = setTimeout(loadWA, 2000)
+    if (tab === 'accounts' && wa && !wa.linked && (st === 'waiting' || st === 'code')) waTimer = setTimeout(loadWA, 1500)
+    if ((tab === 'accounts' || tab === 'general') && wa?.linked && !wa.connected) waTimer = setTimeout(loadWA, 3000)
   }
   async function waLink() { waBusy = true; try { wa = await api('POST', '/api/whatsapp/link', { phone: waPhone }); loadWA() } catch (e) { toast(e.message) } finally { waBusy = false } }
   let chName = $state('')
@@ -122,7 +129,7 @@
     try { upd = await api('GET', '/api/update') } catch { upd = null }
     try { auto = await api('GET', '/api/autostart') } catch { auto = null }
   }
-  $effect(() => { if (tab === 'general') { loadWA(); loadUpd() } return () => clearTimeout(waTimer) })
+  $effect(() => { if (tab === 'general' || tab === 'accounts') loadWA(); if (tab === 'general') loadUpd(); return () => clearTimeout(waTimer) })
   async function checkUpd() { updBusy = 'check'; try { upd = await api('POST', '/api/update/check') } catch (e) { toast(e.message) } finally { updBusy = '' } }
   async function installUpd(force = false) {
     updBusy = 'install'
@@ -213,7 +220,7 @@
 <div class="modal" role="dialog" aria-label="Settings">
   <nav>
     <b class="display">Settings</b>
-    {#each [['general', 'General'], ['groups', 'Groups & safety'], ['clients', 'Clients'], ['tags', 'Tags'], ['sets', 'Group sets'], ['telegram', 'Telegram'], ['api', 'Access']] as [k, l]}
+    {#each [['general', 'General'], ['groups', 'Groups & safety'], ['clients', 'Clients'], ['tags', 'Tags'], ['sets', 'Group sets'], ['accounts', 'Accounts'], ['api', 'Access']] as [k, l]}
       <button class:on={tab === k} onclick={() => (tab = k)}>{l}</button>
     {/each}
     <span style="flex:1"></span>
@@ -221,36 +228,16 @@
   </nav>
   <div class="pane">
     {#if tab === 'general'}
-      <h3>WhatsApp</h3>
-      {#if wa && !wa.linked && !app.demo}
-        {@const ls = wa.link?.state}
-        {#if ls === 'code' || ls === 'waiting'}
-          <p>On your phone, open <b>WhatsApp → Settings → Linked devices → Link a device</b> and scan this code. It refreshes on its own.</p>
-          {#if ls === 'code'}<img class="tgqr" src="/api/whatsapp/qr.png?v={wa.link.version}" alt="WhatsApp link QR code" />{:else}<p class="muted">Getting a code…</p>{/if}
-          {#if wa.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{wa.link.pair_code}</b></p>{/if}
-        {:else if ls === 'linked'}
-          <p class="st"><span class="dot on"></span>Linked. Connecting and loading your groups…</p>
-        {:else}
-          <p>Link your WhatsApp account, the same way you'd link WhatsApp Web. Townsquare then posts as you to the groups, channels and Status you choose.</p>
-          <div class="row">
-            <button class="btn pri" onclick={waLink} disabled={waBusy}>{waBusy ? 'Starting…' : 'Link WhatsApp'}</button>
-            <input class="inp" bind:value={waPhone} placeholder="Phone number (optional)" style="max-width:220px" aria-label="Phone number with country code, for a code instead of a QR" />
-            <span class="muted">Add your number with country code to also get a code you can type in.</span>
-          </div>
-          {#if wa.link?.state === 'error'}<p class="err">{wa.link.message}</p>{/if}
-        {/if}
-      {:else}
-        <p class="st"><span class="dot" class:on={app.connected}></span>{app.connected ? 'Connected' : 'Not connected'} {#if app.phone}as +{app.phone}{/if} · linked device “Townsquare” · sent today: {app.sentToday}
-          {#if wa?.linked && !app.demo}
-            <span style="flex:1"></span>
-            {#if waSure}<button class="btn danger sm" onclick={waLogout}>Unlink now</button><button class="btn sm" onclick={() => (waSure = false)}>Keep</button>
-            {:else}<button class="btn sm" onclick={() => (waSure = true)}>Unlink</button>{/if}
-          {/if}
-        </p>
-        {#if wa?.linked && app.connected && !app.demo}
-          <div class="row"><input class="inp" bind:value={chName} placeholder="New channel name" style="max-width:240px" aria-label="New WhatsApp channel name" onkeydown={(e) => e.key === 'Enter' && chName.trim() && createChannel()} /><button class="btn sm" onclick={createChannel} disabled={!chName.trim()}>Create WhatsApp channel</button></div>
-        {/if}
-      {/if}
+      <h3>Accounts</h3>
+      <div class="accts">
+        <div class="st"><span class="dot" class:on={app.connected}></span><b>WhatsApp</b>
+          <span>{wa?.linked ? (app.connected ? `connected as +${wa.number}` : 'linked, not connected right now') : 'not linked'}{wa?.chats ? ` · ${wa.chats} chat${wa.chats === 1 ? '' : 's'}` : ''}{wa?.last_sync ? ` · loaded ${ago(wa.last_sync)}` : ''}</span></div>
+        <div class="st"><span class="dot" class:on={tg?.status === 'ready'}></span><b>Telegram</b>
+          <span>{tg?.status === 'ready' ? `logged in as ${tg.user}${tg.username ? ' (@' + tg.username + ')' : ''}` : tg?.configured ? 'not logged in' : 'not set up'}{tg?.chats ? ` · ${tg.chats} chat${tg.chats === 1 ? '' : 's'}` : ''}{tg?.last_sync ? ` · loaded ${ago(tg.last_sync)}` : ''}</span></div>
+        {#if tg?.bot}<div class="st"><span class="dot on"></span><b>Telegram bot</b><span>@{tg.bot.username} · {tg.bot.chats} chats</span></div>{/if}
+        <button class="lnk" onclick={() => (tab = 'accounts')}>Manage accounts →</button>
+      </div>
+      <p class="muted">Sent today: {app.sentToday}. Posts can mix WhatsApp and Telegram chats; each one goes out in its own app.</p>
 
       <h3>Townsquare</h3>
       <p class="st">Version {upd?.current || app.version || 'dev'}
@@ -298,6 +285,16 @@
         <label>Late-send grace<span><input class="inp" type="number" min="1" bind:value={s.grace_min} /> min</span></label>
       </div>
       <p class="muted">If Townsquare or WhatsApp is offline at send time, it still sends within the grace window, then marks the send as missed instead of posting late.</p>
+
+      <h3>Undo send</h3>
+      <div class="row">
+        <span class="qseg" role="radiogroup" aria-label="Undo send pause">
+          {#each [['0', 'Off'], ['30', '30 sec'], ['60', '1 min'], ['120', '2 min'], ['300', '5 min']] as [v, l]}
+            <button class:on={(app.settings.send_delay || '0') === v} onclick={async () => { await act(api('PUT', '/api/settings', { send_delay: v }), v === '0' ? 'Undo send off' : `Posts wait ${l} before going out`); s = { ...app.settings } }}>{l}</button>
+          {/each}
+        </span>
+      </div>
+      <p class="muted">Each post waits this long after its time before it goes out. A bar at the top shows what's about to send, with a Cancel button, so a mistake never reaches anyone. Telegram posts handed to Telegram's own queue go out on time.</p>
       <div class="row"><button class="btn pri" disabled={!dirty} onclick={saveSettings}>Save settings</button></div>
     {:else if tab === 'groups'}
       <div class="row">
@@ -336,28 +333,39 @@
       {@const k = tab === 'tags' ? 'tag' : 'client'}
       <p class="muted">{tab === 'tags' ? 'Tags color posts on the calendar.' : 'Clients group posts and chats, so you can filter the calendar to one client.'} Edits save when you leave a field. Undo works here too.</p>
       {#each list as item (item.id)}
-        <div class="row named">
-          <input type="color" value={item.color} onchange={(e) => saveNamed(k, { ...item, color: e.target.value })} aria-label="Color" />
-          <input class="inp" value={item.name} onchange={(e) => saveNamed(k, { ...item, name: e.target.value })} aria-label="Name" />
+        <div class="nmd" class:client={k === 'client'}>
+          <div class="nmr">
+            <input type="color" value={item.color} onchange={(e) => saveNamed(k, { ...item, color: e.target.value })} aria-label="Color" />
+            <input class="inp nmi" value={item.name} onchange={(e) => saveNamed(k, { ...item, name: e.target.value })} aria-label="Name" />
+            {#if k === 'client'}<span class="muted cnt">{app.targets.filter((t) => t.client_id === item.id).length === 1 ? '1 chat' : `${app.targets.filter((t) => t.client_id === item.id).length} chats`}</span>{/if}
+            <span class="sp"></span>
+            <button class="btn danger sm" onclick={() => delNamed(k, item)}>Delete</button>
+          </div>
           {#if k === 'client'}
-            <span class="muted">{app.targets.filter((t) => t.client_id === item.id).length} chats</span>
             {@const mode = !item.quiet_start ? 'global' : item.quiet_start === item.quiet_end ? 'none' : 'custom'}
-            <span class="qseg" role="radiogroup" aria-label="Quiet hours for {item.name}">
-              <span class="muted">Quiet hours</span>
-              <button class:on={mode === 'global'} title="Use global ({app.settings.quiet_start} to {app.settings.quiet_end})" onclick={() => saveNamed(k, { ...item, quiet_start: '', quiet_end: '', timezone: '' })}>Global</button>
-              <button class:on={mode === 'custom'} onclick={() => mode !== 'custom' && saveNamed(k, { ...item, quiet_start: '22:00', quiet_end: '07:00', timezone: item.timezone || app.settings.timezone })}>Custom</button>
-              <button class:on={mode === 'none'} onclick={() => saveNamed(k, { ...item, quiet_start: '00:00', quiet_end: '00:00', timezone: '' })}>None</button>
-            </span>
-            {#if item.quiet_start && item.quiet_start !== item.quiet_end}
-              <input class="inp sm qt" type="time" value={item.quiet_start} onchange={(e) => saveNamed(k, { ...item, quiet_start: e.target.value })} aria-label="Quiet from" />
-              <span class="muted">to</span>
-              <input class="inp sm qt" type="time" value={item.quiet_end} onchange={(e) => saveNamed(k, { ...item, quiet_end: e.target.value })} aria-label="Quiet until" />
-              <select class="inp sm qz" value={item.timezone || app.settings.timezone} onchange={(e) => saveNamed(k, { ...item, timezone: e.target.value })} aria-label="Time zone">
-                {#each [...new Set([item.timezone || app.settings.timezone, ...ZONES])] as z}<option value={z}>{z.split('/').pop().replace('_', ' ')} ({tzShort(z)})</option>{/each}
-              </select>
-            {/if}
+            <div class="qrow">
+              <span class="qlbl">Quiet hours</span>
+              <span class="qseg" role="radiogroup" aria-label="Quiet hours for {item.name}">
+                <button class:on={mode === 'global'} onclick={() => saveNamed(k, { ...item, quiet_start: '', quiet_end: '', timezone: '' })}>Global</button>
+                <button class:on={mode === 'custom'} onclick={() => mode !== 'custom' && saveNamed(k, { ...item, quiet_start: '22:00', quiet_end: '07:00', timezone: item.timezone || app.settings.timezone })}>Custom</button>
+                <button class:on={mode === 'none'} onclick={() => saveNamed(k, { ...item, quiet_start: '00:00', quiet_end: '00:00', timezone: '' })}>None</button>
+              </span>
+              {#if mode === 'custom'}
+                <span class="qtimes">
+                  <input class="inp sm qt" type="time" value={item.quiet_start} onchange={(e) => saveNamed(k, { ...item, quiet_start: e.target.value })} aria-label="Quiet from" />
+                  <span class="muted">to</span>
+                  <input class="inp sm qt" type="time" value={item.quiet_end} onchange={(e) => saveNamed(k, { ...item, quiet_end: e.target.value })} aria-label="Quiet until" />
+                  <select class="inp sm qz" value={item.timezone || app.settings.timezone} onchange={(e) => saveNamed(k, { ...item, timezone: e.target.value })} aria-label="Time zone">
+                    {#each [...new Set([item.timezone || app.settings.timezone, ...ZONES])] as z}<option value={z}>{z.split('/').pop().replace('_', ' ')} ({tzShort(z)})</option>{/each}
+                  </select>
+                </span>
+              {:else if mode === 'global'}
+                <span class="muted qnote">Uses the global quiet hours, {app.settings.quiet_start} to {app.settings.quiet_end}.</span>
+              {:else}
+                <span class="muted qnote">Posts can go out at any hour.</span>
+              {/if}
+            </div>
           {/if}
-          <button class="btn danger sm" onclick={() => delNamed(k, item)}>Delete</button>
         </div>
       {/each}
       {@const nw = tab === 'tags' ? newTag : newClient}
@@ -366,10 +374,55 @@
         <input class="inp" bind:value={nw.name} placeholder="New {k} name" onkeydown={(e) => e.key === 'Enter' && saveNamed(k, nw).then(() => (nw.name = ''))} />
         <button class="btn pri sm" disabled={!nw.name.trim()} onclick={() => saveNamed(k, nw).then(() => (nw.name = ''))}>Add {k}</button>
       </div>
-    {:else if tab === 'telegram'}
+    {:else if tab === 'accounts'}
+      <h3>WhatsApp</h3>
+      {#if wa?.linked && !app.demo}
+        <p class="st"><span class="dot" class:on={app.connected}></span>{#if app.connected}Connected as <b>{wa.name || 'you'}</b> (+{wa.number}){:else}Linked as +{wa.number}, not connected right now{/if}</p>
+        <p class="muted meta">
+          {#if app.connected && wa.connected_since}Connected since {when(wa.connected_since)}.{:else if wa.last_disconnect}Last connected {when(wa.last_disconnect)}; Townsquare reconnects on its own.{/if}
+          {#if wa.last_sync}Chats loaded {ago(wa.last_sync)}: {wa.chats} chats, {wa.allowlisted} allowlisted.{/if}
+          Shows on your phone as the linked device “Townsquare”.
+        </p>
+        <div class="row">
+          <button class="btn" onclick={refreshTargets} disabled={refreshing || !app.connected}>{refreshing ? 'Loading…' : 'Refresh chats'}</button>
+          <button class="btn" onclick={waTest} disabled={!app.connected}>Send test to Message yourself</button>
+        </div>
+      {/if}
+      {#if wa && !wa.linked && !app.demo}
+        {@const ls = wa.link?.state}
+        {#if ls === 'code' || ls === 'waiting'}
+          <p>On your phone, open <b>WhatsApp → Settings → Linked devices → Link a device</b> and scan this code. It refreshes on its own.</p>
+          {#if ls === 'code'}<img class="tgqr" src="/api/whatsapp/qr.png?v={wa.link.version}" alt="WhatsApp link QR code" />{:else}<p class="muted">Getting a code…</p>{/if}
+          {#if wa.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{wa.link.pair_code}</b></p>{/if}
+        {:else if ls === 'linked'}
+          <p class="st"><span class="dot on"></span>Linked. Connecting and loading your groups…</p>
+        {:else}
+          <p>Link your WhatsApp account, the same way you'd link WhatsApp Web. Townsquare then posts as you to the groups, channels and Status you choose.</p>
+          <div class="row">
+            <button class="btn pri" onclick={waLink} disabled={waBusy}>{waBusy ? 'Starting…' : 'Link WhatsApp'}</button>
+            <input class="inp" bind:value={waPhone} placeholder="Phone number (optional)" style="max-width:220px" aria-label="Phone number with country code, for a code instead of a QR" />
+            <span class="muted">Add your number with country code to also get a code you can type in.</span>
+          </div>
+          {#if wa.link?.state === 'error'}<p class="err">{wa.link.message}</p>{/if}
+        {/if}
+      {:else if app.demo}
+        <p class="st"><span class="dot"></span>Demo mode: nothing connects or sends.</p>
+      {/if}
+      {#if wa?.linked && app.connected && !app.demo}
+        <div class="row"><input class="inp" bind:value={chName} placeholder="New channel name" style="max-width:240px" aria-label="New WhatsApp channel name" onkeydown={(e) => e.key === 'Enter' && chName.trim() && createChannel()} /><button class="btn sm" onclick={createChannel} disabled={!chName.trim()}>Create WhatsApp channel</button></div>
+      {/if}
+      {#if wa?.linked && !app.demo}
+        <div class="row">
+          {#if waSure}<button class="btn danger sm" onclick={waLogout}>Unlink now</button><button class="btn sm" onclick={() => (waSure = false)}>Keep</button><span class="muted">Townsquare stops posting to WhatsApp until you link again.</span>
+          {:else}<button class="btn danger sm" onclick={() => (waSure = true)}>Unlink WhatsApp</button>{/if}
+        </div>
+      {/if}
+
       <h3>Telegram</h3>
       {#if !tg}
         <p class="muted">Loading…</p>
+      {:else if app.demo}
+        <p class="st"><span class="dot"></span>Demo mode: nothing connects or sends.</p>
       {:else if !tg.configured}
         <p>Telegram needs a free app ID. Sign in at <a href="https://my.telegram.org" target="_blank" rel="noreferrer">my.telegram.org</a>, open <b>API development tools</b>, create an app (any name), and copy the two values here.</p>
         <div class="row">
@@ -413,7 +466,7 @@
           </div>
         {/if}
       {/if}
-      <h3>Telegram bot</h3>
+      {#if !app.demo}<h3>Telegram bot</h3>{/if}
       {#if tg?.bot}
         <p class="st"><span class="dot on"></span><b>{tg.bot.name}</b> (@{tg.bot.username}) · {tg.bot.chats} chats <span style="flex:1"></span><button class="btn sm" onclick={removeBot}>Remove</button></p>
         <p class="muted">Optional. Add @{tg.bot.username} as an admin to a group or channel and it shows up here with a “TG bot” badge. Send it /start to get a private test chat. Bot chats start off the allowlist.</p>
@@ -539,6 +592,25 @@
   .key.revoked { opacity: .5 }
   .tgqr { width: 240px; height: 240px; image-rendering: pixelated; border-radius: 10px; border: 1px solid var(--line); background: #fff; padding: 8px }
   .lnk { border: 0; background: none; padding: 0; color: var(--sky); font-weight: 500; text-decoration: underline; text-underline-offset: 2px }
+  .nmd { border: 1px solid var(--line2); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px }
+  .nmd:not(.client) { border: 0; padding: 0 0 2px; margin-bottom: 4px }
+  .nmr { display: flex; align-items: center; gap: 8px }
+  .nmr input[type='color'] { width: 34px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: #fff; flex: none }
+  .nmi { max-width: 280px }
+  .nmr .sp { flex: 1 }
+  .cnt { font-size: 12px; white-space: nowrap }
+  .qrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-left: 42px }
+  .qlbl { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+  .qtimes { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap }
+  .qtimes .qt { width: 112px }
+  .qtimes .qz { width: auto; max-width: 190px }
+  .qnote { font-size: 12px }
+  @media (max-width: 700px) { .qrow { padding-left: 0 } .nmi { max-width: none } }
+  .accts { display: flex; flex-direction: column; gap: 6px }
+  .accts .st { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 13px }
+  .accts .st b { min-width: 100px }
+  .accts .lnk { align-self: flex-start; margin-top: 2px }
+  .meta { font-size: 12.5px; margin: 2px 0 8px }
   .err { color: #9B1C2C; background: #FDE4E7; padding: 6px 10px; border-radius: 8px; margin: 0 }
   .qseg { display: inline-flex; align-items: center; gap: 2px } .qseg .muted { margin-right: 4px; font-size: 12px }
   .qseg button { border: 1px solid var(--line); background: #fff; font-size: 12px; padding: 3px 8px; border-radius: 6px } .qseg button.on { background: var(--t800); border-color: var(--t800); color: #fff } .qt { width: 110px !important } .qz { max-width: 170px }

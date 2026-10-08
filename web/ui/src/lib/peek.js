@@ -12,12 +12,16 @@ export function closePeek() {
 }
 export function holdPeek() { clearTimeout(hideT) }
 
-/** Open the composer for one occurrence. */
+/** A send that already went out (or was deleted afterwards). */
+export const wentOut = (s) => ['sent', 'partial', 'unsent'].includes(s.delivery)
+
+/** Open a send: the sent-post view if it went out, else the composer. */
 export function openSend(s, scope) {
   clearTimeout(showT)
   app.peek = null
   const post = app.posts[s.post_id]
   if (!post) return
+  if (wentOut(s) && !scope) { app.sent = s; return }
   app.composer = { post: JSON.parse(JSON.stringify(post)), occ: s, scope: scope || (s.repeating ? 'one' : 'all') }
 }
 

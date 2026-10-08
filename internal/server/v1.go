@@ -107,6 +107,9 @@ func (s *Server) v1Mux() *http.ServeMux {
 	m.HandleFunc("POST /api/v1/sends/move", s.moveSend)
 	m.HandleFunc("POST /api/v1/sends/copy", s.copySend)
 	m.HandleFunc("POST /api/v1/sends/skip", s.skipSend)
+	m.HandleFunc("POST /api/v1/sends/unsend", s.takeBackHandler(false))
+	m.HandleFunc("POST /api/v1/sends/edit", s.takeBackHandler(true))
+	m.HandleFunc("GET /api/v1/sends/pending", s.pendingSends)
 
 	m.HandleFunc("GET /api/v1/stats/summary", s.statsSummary)
 	m.HandleFunc("GET /api/v1/stats/summary.txt", s.statsText)

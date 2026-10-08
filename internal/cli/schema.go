@@ -21,7 +21,8 @@ var (
 		"pause": true, "resume": true, "move": true, "copy": true, "skip": true, "undo": true, "redo": true, "send": true, "login": true,
 		"logout": true, "password": true, "qr": true, "link": true, "summary": true, "text": true, "export": true, "share": true,
 		"check": true, "install": true, "stop": true, "restart": true, "bulk": true, "upcoming": true, "deliveries": true,
-		"badges": true, "post": true, "status": true, "local": true, "use": true, "show": true, "path": true}
+		"badges": true, "post": true, "status": true, "local": true, "use": true, "show": true, "path": true,
+		"edit": true, "unsend": true, "pending": true}
 	bannedWords = map[string]bool{"ls": true, "rm": true, "del": true, "info": true, "new": true, "add": true, "fetch": true, "kill": true}
 	bannedFlags = map[string]bool{"--force": true, "--format": true, "--api-key": true, "--json-errors": true, "--all": true, "--num": true, "--size": true}
 	flagRE      = regexp.MustCompile(`^--[a-z][a-z0-9-]*$`)

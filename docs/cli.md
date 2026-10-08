@@ -425,6 +425,21 @@ List deliveries of a send. `GET /api/v1/sends/deliveries` · read_only
 townsquare sends deliveries --schedule-id 51 --occ 2026-10-15T18:30
 ```
 
+#### `townsquare sends edit`
+
+Edit the text of a sent post. `POST /api/v1/sends/edit` · idempotent · **needs --yes**
+
+- `--caption` string Edit only: the new text
+- `--chats` string list Only these chats (default: every chat it went to)
+- `--occ` string (required) 
+- `--post-id` integer (required) 
+- `--schedule-id` integer (required) 
+
+```sh
+townsquare sends edit --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --caption @fixed.txt --dry-run
+townsquare sends edit --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --caption 'Dinner starts at 7, not 6.' --yes
+```
+
 #### `townsquare sends list`
 
 List sends. `GET /api/v1/sends` · read_only
@@ -452,6 +467,15 @@ Move send. `POST /api/v1/sends/move` · non_idempotent
 townsquare sends move --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --to 2026-10-15T19:00 --scope one
 ```
 
+#### `townsquare sends pending`
+
+List sends waiting out the undo-send pause. `GET /api/v1/sends/pending` · read_only
+
+```sh
+townsquare sends pending
+townsquare sends pending --transform items.#.seconds_left
+```
+
 #### `townsquare sends skip`
 
 Skip send. `POST /api/v1/sends/skip` · idempotent
@@ -465,6 +489,21 @@ Skip send. `POST /api/v1/sends/skip` · idempotent
 
 ```sh
 townsquare sends skip --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30
+```
+
+#### `townsquare sends unsend`
+
+Delete a sent post for everyone. `POST /api/v1/sends/unsend` · idempotent · **needs --yes**
+
+- `--caption` string Edit only: the new text
+- `--chats` string list Only these chats (default: every chat it went to)
+- `--occ` string (required) 
+- `--post-id` integer (required) 
+- `--schedule-id` integer (required) 
+
+```sh
+townsquare sends unsend --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --dry-run
+townsquare sends unsend --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --chats 120363000000000102@g.us --yes
 ```
 
 ### sessions
@@ -555,6 +594,7 @@ Update settings. `PATCH /api/v1/settings` · idempotent
 - `--quiet-end` string 
 - `--quiet-start` string 
 - `--safe-mode` string 
+- `--send-delay` string 
 - `--stats-people` string 
 - `--tg-queue-hours` string 
 - `--timezone` string 

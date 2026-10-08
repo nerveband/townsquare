@@ -1,10 +1,12 @@
 <script>
-  // Shows a post the way it will arrive in WhatsApp: each media item is its own
-  // message, the caption rides on the first one (a voice note's caption follows as text).
+  // Shows a post the way it will arrive. WhatsApp: each media item is its own
+  // message, the caption rides on the first one (a voice note's caption follows
+  // as text). Telegram: photos and videos arrive as one album with the caption
+  // under it; other files follow one by one.
   import { app, checkAuth } from './state.svelte.js'
   import { waHTML } from './wafmt.js'
 
-  let { caption = '', media = [], time = '', compact = false } = $props()
+  let { caption = '', media = [], time = '', compact = false, platform = 'whatsapp' } = $props()
   const info = (id) => app.media[id] || { id, kind: 'image', name: '' }
   const dur = (s) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '0:00')
   const bars = [6, 12, 18, 10, 22, 14, 8, 20, 16, 26, 12, 18, 9, 15, 22, 11, 7, 17, 24, 13, 10, 19, 8, 14]
@@ -12,6 +14,14 @@
   // Build the list of messages that will actually be sent.
   const msgs = $derived.by(() => {
     if (!media.length) return caption.trim() ? [{ kind: 'text', text: caption }] : []
+    if (platform === 'telegram') {
+      const vis = media.map(info).filter((m) => m.kind === 'image' || m.kind === 'video')
+      const rest = media.map(info).filter((m) => m.kind !== 'image' && m.kind !== 'video')
+      const out = []
+      if (vis.length) out.push({ kind: 'album', items: vis, text: caption })
+      rest.forEach((m, i) => out.push({ kind: m.kind, m, text: !vis.length && i === 0 ? caption : '' }))
+      return out
+    }
     const out = []
     media.forEach((id, i) => {
       const m = info(id)
@@ -24,10 +34,20 @@
   let broken = $state({})
 </script>
 
-<div class="wap" class:compact>
+<div class="wap" class:compact class:tg={platform === 'telegram'}>
   {#each msgs as msg, i}
-    <div class="bub" class:media={msg.kind === 'image' || msg.kind === 'video'}>
-      {#if msg.kind === 'image' || msg.kind === 'video'}
+    <div class="bub" class:media={msg.kind === 'image' || msg.kind === 'video' || msg.kind === 'album'}>
+      {#if msg.kind === 'album'}
+        <div class="album" class:one={msg.items.length === 1}>
+          {#each msg.items.slice(0, 10) as m (m.id)}
+            <div class="vis">
+              {#if broken[m.id]}<div class="ph">{m.kind === 'video' ? 'Video' : 'Photo'}</div>
+              {:else}<img src="/api/media/{m.id}/preview" alt={m.name} onerror={() => { broken = { ...broken, [m.id]: true }; checkAuth() }} />{/if}
+              {#if m.kind === 'video'}<span class="play"></span><span class="dur">▶ {dur(m.seconds)}</span>{/if}
+            </div>
+          {/each}
+        </div>
+      {:else if msg.kind === 'image' || msg.kind === 'video'}
         <div class="vis">
           {#if broken[msg.m.id]}<div class="ph">{msg.m.kind === 'video' ? 'Video' : 'Photo'}</div>
           {:else}<img src="/api/media/{msg.m.id}/preview" alt={msg.m.name} onerror={() => { broken = { ...broken, [msg.m.id]: true }; checkAuth() }} />{/if}
@@ -46,7 +66,7 @@
       <span class="meta">{time}<b>✓✓</b></span>
     </div>
   {:else}
-    <p class="empty">Your message will show here, formatted the way WhatsApp shows it.</p>
+    <p class="empty">Your message will show here, formatted the way {platform === 'telegram' ? 'Telegram' : 'WhatsApp'} shows it.</p>
   {/each}
 </div>
 
@@ -75,4 +95,13 @@
   .fi { background: #E0475B; color: #fff; font: 600 10px var(--mono); border-radius: 4px; padding: 6px 4px; flex: none }
   .fn { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
   .empty { margin: 0; align-self: center; color: #5D6E68; font-size: 12.5px; padding: 18px 0 }
+  .album { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-radius: 10px; overflow: hidden }
+  .album.one { grid-template-columns: 1fr }
+  .album .vis { border-radius: 0 }
+  .album .vis img { height: 100%; min-height: 110px; max-height: 260px }
+  /* Telegram: light green outgoing bubbles, rounder corners, green ticks */
+  .tg .bub { background: #EFFDDE; border-radius: 14px 14px 4px 14px; box-shadow: 0 1px 1px rgba(16, 35, 47, .15) }
+  .tg .meta { color: #5FA752 }
+  .tg .meta b { color: #4FAE4E }
+  .tg .pl { background: #4FAE4E }
 </style>

@@ -12,11 +12,11 @@
   const p = $derived(app.posts[s.post_id])
   const clean = (t) => (t || '').replace(/[*_~`]/g, '')
   const state = $derived(
-    s.delivery === 'sent' ? 'sent' : s.delivery === 'failed' ? 'failed' : s.delivery === 'blocked' ? 'blocked' : s.delivery === 'partial' ? 'partial' : p?.status === 'paused' ? 'paused' : ''
+    s.delivery === 'sent' ? 'sent' : s.delivery === 'failed' ? 'failed' : s.delivery === 'blocked' ? 'blocked' : s.delivery === 'partial' ? 'partial' : s.delivery === 'unsent' ? 'unsent' : p?.status === 'paused' ? 'paused' : ''
   )
   const badge = $derived(app.badges[`${s.schedule_id}|${s.occ}`])
   const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : n)
-  const stateLabel = { sent: 'Sent ✓', failed: 'Failed', blocked: 'Held by safe mode', partial: 'Partly sent', paused: 'Paused' }
+  const stateLabel = { sent: 'Sent ✓', failed: 'Failed', blocked: 'Held by safe mode', partial: 'Partly sent', paused: 'Paused', unsent: 'Deleted for everyone' }
 </script>
 
 {#if p}
@@ -46,7 +46,7 @@
       {:else}
         <p class="bubble wa">{@html waHTML(s.caption.replace(/\n{2,}/g, '\n'))}</p>
       {/if}
-      {#if badge && (badge.reach || badge.reactions)}
+      {#if badge}
         <div class="eng" title="{badge.reach} reached{badge.members ? ` of ${badge.members}` : ''} · {badge.reactions} reactions · {badge.replies} replies">
           <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>{fmt(badge.reach)}</span>
           {#if badge.reactions}<span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.4 2.6h2.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z" /></svg>{fmt(badge.reactions)}</span>{/if}
@@ -81,5 +81,6 @@
   .sent { opacity: .6 }
   .failed { border-color: #F2B5BE } .failed .st { color: var(--rose) }
   .blocked .st { color: #865A07 }
+  .unsent { opacity: .62 } .unsent .st { color: var(--muted) }
   .paused { opacity: .75 } .paused .st { color: #865A07 }
 </style>

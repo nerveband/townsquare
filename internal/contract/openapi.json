@@ -2315,6 +2315,151 @@
     }
    }
   },
+  "/sends/unsend": {
+   "post": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "Delete a sent post for everyone",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TakeBackResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Deletes what Townsquare sent, in every chat (or the chats given). WhatsApp allows this for about 2.5 days (Status: 24 hours), Telegram with no limit (bot: 48 hours). Use dry_run first: it lists each chat and whether it's still possible. Can't be undone.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TakeBackInput"
+       }
+      }
+     }
+    },
+    "operationId": "delete_a_sent_post_for_everyone",
+    "x-cli": {
+     "name": "sends unsend",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare sends unsend --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --dry-run",
+      "townsquare sends unsend --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --chats 120363000000000102@g.us --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
+   }
+  },
+  "/sends/edit": {
+   "post": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "Edit the text of a sent post",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TakeBackResult"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Replaces the text in every chat it went to. WhatsApp: text messages only, for 15 minutes. Telegram: text and captions, no limit (bot: 48 hours). The post itself is not changed.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TakeBackInput"
+       }
+      }
+     }
+    },
+    "operationId": "edit_the_text_of_a_sent_post",
+    "x-cli": {
+     "name": "sends edit",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare sends edit --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --caption @fixed.txt --dry-run",
+      "townsquare sends edit --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --caption 'Dinner starts at 7, not 6.' --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
+   }
+  },
+  "/sends/pending": {
+   "get": {
+    "tags": [
+     "Sends"
+    ],
+    "summary": "List sends waiting out the undo-send pause",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Pending"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "description": "With the send_delay setting on, sends wait that many seconds after their time. Cancel one with POST /sends/skip before seconds_left reaches 0.",
+    "operationId": "list_sends_waiting_out_the_undo-send_pause",
+    "x-cli": {
+     "name": "sends pending",
+     "effects": "read_only",
+     "examples": [
+      "townsquare sends pending",
+      "townsquare sends pending --transform items.#.seconds_left"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
   "/changes": {
    "get": {
     "tags": [
@@ -4702,6 +4847,9 @@
      },
      "auto_update": {
       "type": "string"
+     },
+     "send_delay": {
+      "type": "string"
      }
     },
     "description": "All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope."
@@ -4868,6 +5016,139 @@
     },
     "description": "Quiet hours apply to chats assigned to this client (and to posts with this client when the chat has none)."
    },
+   "TakeBackInput": {
+    "type": "object",
+    "properties": {
+     "post_id": {
+      "type": "integer"
+     },
+     "schedule_id": {
+      "type": "integer"
+     },
+     "occ": {
+      "type": "string"
+     },
+     "chats": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Only these chats (default: every chat it went to)"
+     },
+     "caption": {
+      "type": "string",
+      "description": "Edit only: the new text"
+     },
+     "dry_run": {
+      "type": "boolean",
+      "description": "Show what would happen in each chat; change nothing"
+     }
+    },
+    "required": [
+     "post_id",
+     "schedule_id",
+     "occ"
+    ]
+   },
+   "TakeBackResult": {
+    "type": "object",
+    "properties": {
+     "dry_run": {
+      "type": "boolean"
+     },
+     "changed": {
+      "type": "boolean"
+     },
+     "done": {
+      "type": "integer",
+      "description": "Chats where it was deleted or edited"
+     },
+     "chats": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "jid": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        },
+        "platform": {
+         "type": "string"
+        },
+        "result": {
+         "type": "string",
+         "enum": [
+          "deleted",
+          "edited",
+          "would_delete",
+          "would_edit",
+          "already_deleted",
+          "too_old",
+          "cant_edit",
+          "not_supported",
+          "not_sent",
+          "failed"
+         ]
+        },
+        "messages": {
+         "type": "integer"
+        },
+        "until": {
+         "type": "integer",
+         "description": "Unix time the window closes; 0 = no limit"
+        },
+        "note": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "Pending": {
+    "type": "object",
+    "properties": {
+     "delay_seconds": {
+      "type": "integer"
+     },
+     "items": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "post_id": {
+         "type": "integer"
+        },
+        "schedule_id": {
+         "type": "integer"
+        },
+        "occ": {
+         "type": "string"
+        },
+        "title": {
+         "type": "string"
+        },
+        "at": {
+         "type": "string",
+         "format": "date-time"
+        },
+        "send_at": {
+         "type": "string",
+         "format": "date-time"
+        },
+        "seconds_left": {
+         "type": "integer"
+        },
+        "chats": {
+         "type": "integer"
+        }
+       }
+      }
+     }
+    }
+   },
    "UpdateState": {
     "type": "object",
     "properties": {
@@ -4987,6 +5268,27 @@
      "number": {
       "type": "string"
      },
+     "name": {
+      "type": "string",
+      "description": "WhatsApp profile name"
+     },
+     "chats": {
+      "type": "integer"
+     },
+     "allowlisted": {
+      "type": "integer"
+     },
+     "connected_since": {
+      "type": "integer",
+      "description": "Unix time; 0 = not connected since start"
+     },
+     "last_disconnect": {
+      "type": "integer"
+     },
+     "last_sync": {
+      "type": "integer",
+      "description": "Unix time chats were last loaded"
+     },
      "link": {
       "type": "object",
       "properties": {
@@ -5030,6 +5332,10 @@
        "built-in"
       ],
       "description": "where the app id comes from"
+     },
+     "last_sync": {
+      "type": "integer",
+      "description": "Unix time chats were last loaded"
      },
      "status": {
       "type": "string",
@@ -5661,7 +5967,8 @@
        "sent",
        "partial",
        "failed",
-       "blocked"
+       "blocked",
+       "unsent"
       ]
      },
      "sent": {
@@ -5672,6 +5979,10 @@
      },
      "blocked": {
       "type": "integer"
+     },
+     "unsent": {
+      "type": "integer",
+      "description": "Chats where it was deleted for everyone afterwards"
      }
     }
    },
@@ -5872,6 +6183,33 @@
         },
         "members": {
          "type": "integer"
+        },
+        "items": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "post_id": {
+            "type": "integer"
+           },
+           "title": {
+            "type": "string"
+           },
+           "reach": {
+            "type": "integer"
+           },
+           "sent": {
+            "type": "integer"
+           },
+           "held": {
+            "type": "integer"
+           },
+           "failed": {
+            "type": "integer"
+           }
+          }
+         },
+         "description": "Posts that went out that day, most reached first (up to 8)"
         }
        }
       }

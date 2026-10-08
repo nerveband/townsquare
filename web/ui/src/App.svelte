@@ -10,6 +10,9 @@
   import List from './lib/List.svelte'
   import Peek from './lib/Peek.svelte'
   import Composer from './lib/Composer.svelte'
+  import SentView from './lib/SentView.svelte'
+  import Drafts from './lib/Drafts.svelte'
+  import { api as callApi, act as doAct } from './lib/state.svelte.js'
   import History from './lib/History.svelte'
   import Settings from './lib/Settings.svelte'
   import Toast from './lib/Toast.svelte'
@@ -20,9 +23,30 @@
   import SignIn from './lib/SignIn.svelte'
   import Stats from './lib/Stats.svelte'
 
+  // Undo send: poll what's waiting to go out, count down, offer Cancel.
+  let pending = $state([])
+  async function pollPending() {
+    if (app.demo || !app.settings.send_delay || app.settings.send_delay === '0') { pending = []; return }
+    try {
+      const r = await callApi('GET', '/api/sends/pending')
+      const now = Date.now()
+      pending = r.items.map((x) => ({ ...x, until: now + x.seconds_left * 1000, left: x.seconds_left }))
+    } catch { /* offline */ }
+  }
+  function tickPending() { const now = Date.now(); pending = pending.map((x) => ({ ...x, left: Math.round((x.until - now) / 1000) })).filter((x) => x.left > -5) }
+  async function cancelSend(x) {
+    await doAct(callApi('POST', '/api/sends/skip', { post_id: x.post_id, schedule_id: x.schedule_id, occ: x.occ }), `Cancelled ${x.title}`)
+    pending = pending.filter((y) => y !== x)
+  }
+  onMount(() => {
+    const pp = setInterval(pollPending, 5000)
+    const tp = setInterval(tickPending, 1000)
+    pollPending()
+    return () => { clearInterval(pp); clearInterval(tp) }
+  })
   onMount(() => {
     refresh().then(loadTargets).catch((e) => (app.error = e.message))
-    const t = setInterval(() => { if (!app.composer && !app.needSignIn) refresh().catch(() => {}) }, 20000)
+    const t = setInterval(() => { if (!app.composer && !app.sent && !app.needSignIn) refresh().catch(() => {}) }, 20000)
     return () => clearInterval(t)
   })
 
@@ -39,9 +63,10 @@
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); app.showSearch = !app.showSearch; return }
     if (app.showSearch) return
     if (e.target.closest('input,textarea,select,[contenteditable]')) return
+    if (e.key === 'D' && e.shiftKey && !app.composer) { app.showDrafts = !app.showDrafts; return }
     if (e.key === '/' && !app.composer && !app.showSettings) { e.preventDefault(); app.showSearch = true; return }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
-    else if (app.composer || app.showSettings || e.metaKey || e.ctrlKey || e.altKey) return
+    else if (app.composer || app.sent || app.showDrafts || app.showSettings || e.metaKey || e.ctrlKey || e.altKey) return
     else if (e.key === 'n') { e.preventDefault(); newPost() }
     else if (e.key === 'w') setView('week')
     else if (e.key === 'g') setView('time')
@@ -98,12 +123,16 @@
     <div class="pvbar">Previewing all times in <b>{zoneName(tz())} ({tzShort(tz())})</b>. Your default is {zoneName(defaultTZ())}. New posts and moves use the zone you're viewing.
       <button onclick={() => { app.viewTZ = ''; loadSends() }}>Back to {zoneName(defaultTZ())}</button></div>
   {/if}
+  {#each pending as x (x.schedule_id + x.occ)}
+    <div class="pending">Sending <b>{x.title}</b> to {x.chats} chat{x.chats === 1 ? '' : 's'} in {Math.max(0, x.left)}s
+      <button onclick={() => cancelSend(x)}>Cancel this send</button></div>
+  {/each}
   {#if app.error}<div class="safe err">{app.error}</div>{/if}
 
   <div class="body">
     {#if app.showTray}<div class="trayscrim" role="presentation" onclick={() => (app.showTray = false)}></div>{/if}
     <aside class="tray" class:open={app.showTray}>
-      <div class="label">Drafts <span>{app.drafts.length}</span></div>
+      <div class="label"><span>Drafts · {app.drafts.length}</span>{#if app.drafts.length}<button class="seeall" onclick={() => (app.showDrafts = true)}>See all</button>{/if}</div>
       {#each app.drafts as d (d.id)}
         <div class="dr" draggable="true" role="button" tabindex="0" ondragstart={(e) => dragDraft(e, d)}
           onclick={() => (app.composer = { post: JSON.parse(JSON.stringify(d)), scope: 'all' })}
@@ -135,6 +164,8 @@
 <button class="fab" onclick={newPost} aria-label="New post">+</button>
 <Peek />
 {#if app.composer}<Composer />{/if}
+<SentView />
+{#if app.showDrafts}<Drafts />{/if}
 {#if app.showSettings}<Settings />{/if}
 {#if app.showSearch}<Search />{/if}
 <Toast />
@@ -154,6 +185,10 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rose) } .dot.on { background: var(--grass) }
   .safe { background: var(--amber-bg); border-bottom: 1px solid var(--amber-line); color: var(--amber-ink); padding: 6px 16px; font-size: 12.5px; flex: none }
   .safe button { border: 0; background: transparent; color: var(--t800); font-weight: 600; text-decoration: underline }
+  .seeall { margin-left: auto; border: 0; background: none; color: var(--sky); font: 500 11px var(--sans); text-transform: none; letter-spacing: 0; padding: 0 }
+  .pending { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #0E2A47; color: #fff; font-size: 13px }
+  .pending b { color: #FFD21F }
+  .pending button { margin-left: auto; border: 0; border-radius: 6px; background: #FFD21F; color: #0E2A47; font-weight: 600; padding: 4px 10px }
   .safe.demo { background: #EEF6FD; border-color: #CFE3F5; color: #164E6D }
   .safe.err { background: #FDE4E7; color: #9B1C2C }
   .pvbar { background: #EEF6FD; border-bottom: 1px solid #CFE3F5; color: #164E6D; padding: 6px 16px; font-size: 12.5px; flex: none }

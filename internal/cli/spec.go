@@ -52,6 +52,8 @@ type Command struct {
 	BodySchema  map[string]any
 	RespSchema  map[string]any
 	Errors      []string
+	// ServerDryRun: the API takes "dry_run", so --dry-run is checked by the server.
+	ServerDryRun bool
 }
 
 type specDoc struct {
@@ -154,6 +156,10 @@ func load(raw []byte) ([]*Command, error) {
 				}
 				sort.Strings(names)
 				for _, n := range names {
+					if n == "dry_run" {
+						c.ServerDryRun = true // the global --dry-run asks the server
+						continue
+					}
 					ps, _ := props[n].(map[string]any)
 					prm := paramFrom(n, ps, "body", req[n])
 					prm.Desc = str(ps["description"])

@@ -227,3 +227,29 @@ func (w *Bot) Send(ctx context.Context, jid, caption string, media []tg.Media) (
 
 // IsBot reports whether a JID belongs to the bot transport.
 func IsBot(jid string) bool { return strings.HasPrefix(jid, "tgbot:") }
+
+// Delete removes the bot's messages from a chat for everyone (Telegram allows
+// this for 48 hours in groups).
+func (w *Bot) Delete(ctx context.Context, jid string, ids []int) error {
+	id, err := strconv.ParseInt(strings.TrimPrefix(jid, "tgbot:"), 10, 64)
+	if err != nil {
+		return fmt.Errorf("bad bot chat id %q", jid)
+	}
+	_, err = w.b.DeleteMessages(ctx, &bot.DeleteMessagesParams{ChatID: id, MessageIDs: ids})
+	return err
+}
+
+// Edit changes the text (or, for a photo or file, the caption) of a bot message.
+func (w *Bot) Edit(ctx context.Context, jid string, msgID int, caption string, isMedia bool) error {
+	id, err := strconv.ParseInt(strings.TrimPrefix(jid, "tgbot:"), 10, 64)
+	if err != nil {
+		return fmt.Errorf("bad bot chat id %q", jid)
+	}
+	html := tg.ToHTML(caption)
+	if isMedia {
+		_, err = w.b.EditMessageCaption(ctx, &bot.EditMessageCaptionParams{ChatID: id, MessageID: msgID, Caption: html, ParseMode: models.ParseModeHTML})
+	} else {
+		_, err = w.b.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: id, MessageID: msgID, Text: html, ParseMode: models.ParseModeHTML})
+	}
+	return err
+}

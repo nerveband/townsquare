@@ -87,6 +87,8 @@ func (s *Server) tick(ctx context.Context) {
 	set := s.DB.Settings(ctx)
 	tz := set["timezone"]
 	grace := time.Duration(atoi(set["grace_min"], 15)) * time.Minute
+	// "Undo send": each send waits this long after its time, so it can still be cancelled.
+	delay := time.Duration(atoi(set["send_delay"], 0)) * time.Second
 	now := time.Now()
 	posts, err := s.DB.Posts(ctx, "scheduled")
 	if err != nil {
@@ -94,14 +96,15 @@ func (s *Server) tick(ctx context.Context) {
 		return
 	}
 	// Anything older than the grace window that never went out is marked missed.
-	for _, o := range store.Expand(posts, now.Add(-48*time.Hour), now.Add(-grace)) {
+	for _, o := range store.Expand(posts, now.Add(-48*time.Hour), now.Add(-grace-delay)) {
 		for _, jid := range o.Targets {
 			if !s.DB.Delivered(ctx, o.ScheduleID, o.Occ, jid) {
 				s.DB.RecordDelivery(ctx, o.PostID, o.ScheduleID, o.Occ, jid, "missed", "", "not sent within the grace window (was Townsquare or WhatsApp offline?)")
 			}
 		}
 	}
-	due := store.Expand(posts, now.Add(-grace), now.Add(time.Second))
+	from, to := dueRange(now, grace, delay)
+	due := store.Expand(posts, from, to)
 	if len(due) == 0 {
 		return
 	}
@@ -193,7 +196,14 @@ func (s *Server) tick(ctx context.Context) {
 				continue
 			}
 			s.DB.RecordDelivery(ctx, o.PostID, o.ScheduleID, o.Occ, jid, "sent", id, "")
-			s.recordStatSend(ctx, o, t, posts, msgs)
+			s.DB.RecordSent(ctx, o.ScheduleID, o.Occ, jid, msgs)
+			var stat []store.StatMsg
+			for _, m := range msgs {
+				if m.Platform != "telegram_bot" {
+					stat = append(stat, m)
+				}
+			}
+			s.recordStatSend(ctx, o, t, posts, stat)
 			sent++
 		}
 		if sent+failed+blocked > 0 {
@@ -212,6 +222,12 @@ func (s *Server) tick(ctx context.Context) {
 	}
 }
 
+// dueRange is the window of send times that go out now: within the late-send
+// grace, and older than the undo-send pause.
+func dueRange(now time.Time, grace, delay time.Duration) (time.Time, time.Time) {
+	return now.Add(-grace - delay), now.Add(-delay + time.Second)
+}
+
 // deliver sends one occurrence to one chat: each media item as its own message
 // (caption on the first), or a text message when there is no media.
 func (s *Server) deliver(ctx context.Context, o store.Occurrence, jid string, prepared map[string]*wa.Prepared, msgs *[]store.StatMsg) (string, error) {
@@ -226,7 +242,7 @@ func (s *Server) deliver(ctx context.Context, o store.Occurrence, jid string, pr
 	waSend := func(p *wa.Prepared, text, kind string) (string, error) {
 		r, err := wa.SendPreparedResp(ctx, s.WA, jid, p, text)
 		if err == nil {
-			*msgs = append(*msgs, store.StatMsg{Platform: "whatsapp", ID: r.ID, ServerID: int64(r.ServerID), Kind: kind})
+			*msgs = append(*msgs, store.StatMsg{Platform: "whatsapp", ID: r.ID, ServerID: int64(r.ServerID), Kind: kind, Text: text != ""})
 		}
 		return r.ID, err
 	}
@@ -235,7 +251,15 @@ func (s *Server) deliver(ctx context.Context, o store.Occurrence, jid string, pr
 		if err != nil {
 			return "", err
 		}
-		return s.Bot.Send(ctx, jid, o.Caption, media)
+		id, err := s.Bot.Send(ctx, jid, o.Caption, media)
+		if err == nil && id != "" {
+			kind := "text"
+			if len(media) > 0 {
+				kind = media[0].Kind
+			}
+			*msgs = append(*msgs, store.StatMsg{Platform: "telegram_bot", ID: id, Kind: kind, Text: true})
+		}
+		return id, err
 	}
 	if len(o.Media) == 0 {
 		return waSend(nil, o.Caption, "text")

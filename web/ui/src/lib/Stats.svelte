@@ -1,6 +1,7 @@
 <script>
-  import { app, api, act, toast, loadState } from './state.svelte.js'
+  import { app, api, act, toast, loadState, setView } from './state.svelte.js'
   import Platform from './Platform.svelte'
+  import { waHTML } from './wafmt.js'
 
   let days = $state(+(localStorage.getItem('townsquare.statsDays') || 30))
   let platforms = $state(['whatsapp', 'telegram'])
@@ -81,15 +82,34 @@
   const chatName = $derived(chat ? (app.targets.find((t) => t.jid === chat)?.name || chat) : '')
   const allowed = $derived(app.targets.filter((t) => t.allowed && !t.gone && t.can_send))
 
+  // Hover a day on either chart to see what went out that day.
+  let hover = $state(null) // { i, x, y }
+  let hideT
+  function showDay(i, e) {
+    clearTimeout(hideT)
+    const r = e.currentTarget.closest('section').getBoundingClientRect()
+    hover = { i, x: Math.min(e.clientX + 14, innerWidth - 300), y: Math.max(8, Math.min(e.clientY - 20, innerHeight - 260)), top: r.top }
+  }
+  function hideDay() { hideT = setTimeout(() => (hover = null), 250) }
+  function goToDay(day) {
+    app.anchor = day
+    setView('week')
+  }
+
   function togglePlatform(p) { platforms = platforms.includes(p) ? platforms.filter((x) => x !== p) : [...platforms, p] }
   async function setNames(on) {
     await act(api('PUT', '/api/settings', { stats_people: on ? '1' : '0' }), on ? 'Who read it lists on' : 'Who read it lists off (names removed)')
     await loadState()
     data = await api('GET', `/api/stats/summary?${query}`)
   }
+  let summaryText = $state(null)
+  async function openSummary() {
+    sharing = true
+    summaryText = null
+    try { summaryText = await (await fetch(`/api/stats/summary.txt?${query}`)).text() } catch (e) { sharing = false; toast(e.message) }
+  }
   async function copySummary() {
-    const t = await (await fetch(`/api/stats/summary.txt?${query}`)).text()
-    await navigator.clipboard.writeText(t)
+    await navigator.clipboard.writeText(summaryText || '')
     toast('Summary copied')
   }
   async function share() {
@@ -108,20 +128,29 @@
     <label class="pf"><input type="checkbox" checked={platforms.includes('telegram')} onchange={() => togglePlatform('telegram')} />Telegram</label>
     {#if chat}<span class="focus">{chatName} <button onclick={() => (chat = '')} aria-label="Show all chats">×</button></span>{/if}
     <span class="sp"></span>
-    <button class="btn sm" onclick={copySummary}>Copy summary</button>
-    <button class="btn sm" onclick={() => (sharing = !sharing)}>Send summary…</button>
+    <button class="btn sm" onclick={openSummary}>Summary…</button>
     <a class="btn sm" href={`/api/stats/export.csv?${query}`} download>Download CSV</a>
   </div>
   {#if sharing}
-    <div class="share">
-      <span>Send this summary now to:</span>
-      <label><input type="radio" bind:group={shareTo} value="me" /> Message yourself</label>
-      {#each allowed.filter((t) => t.kind !== 'self' && t.kind !== 'status').slice(0, 8) as t (t.jid)}
-        <label><input type="radio" bind:group={shareTo} value={t.jid} /> {t.name}</label>
-      {/each}
-      <button class="btn sm pri" onclick={share}>Send</button>
-      <button class="btn sm" onclick={() => (sharing = false)}>Cancel</button>
-      {#if app.settings.safe_mode === '1'}<small class="muted">Safe mode is on, so only allowlisted chats are listed.</small>{/if}
+    <div class="sscrim" role="presentation" onclick={() => (sharing = false)}></div>
+    <div class="smodal" role="dialog" aria-label="Stats summary">
+      <header><b class="display">Summary</b><span class="muted">{days} days{platforms.length < 2 ? ' · ' + platforms.join(', ') : ''}{chat ? ' · ' + chatName : ''}</span>
+        <span class="sp"></span><button class="ib" onclick={() => (sharing = false)} aria-label="Close">✕</button></header>
+      <div class="sbody">
+        {#if summaryText === null}<p class="muted">Loading…</p>
+        {:else}<div class="pvchat"><div class="bubble wa">{@html waHTML(summaryText)}</div></div>{/if}
+      </div>
+      <footer>
+        <button class="btn" onclick={copySummary} disabled={!summaryText}>Copy</button>
+        <span class="sp"></span>
+        <span class="muted">Send to</span>
+        <select class="inp sm" bind:value={shareTo} aria-label="Send the summary to">
+          <option value="me">Message yourself</option>
+          {#each allowed.filter((t) => t.kind !== 'self' && t.kind !== 'status') as t (t.jid)}<option value={t.jid}>{t.name}</option>{/each}
+        </select>
+        <button class="btn pri" onclick={share} disabled={!summaryText}>Send now</button>
+      </footer>
+      {#if app.settings.safe_mode === '1'}<small class="muted note2">Safe mode is on, so only allowlisted chats are listed.</small>{/if}
     </div>
   {/if}
 
@@ -160,8 +189,14 @@
           <path d={reach.area} fill="url(#rg)" />
           <path d={reach.line} fill="none" stroke="#1673E6" stroke-width="2" stroke-linejoin="round" />
           {#each reach.pts as p, i}
-            {#if p.posts}<circle cx={reach.x(i)} cy={reach.y(p.reach)} r="3.2" fill="#FFD21F" stroke="#0E2A47" stroke-width="1"><title>{dayShort(p.day)}: {p.reach} reached, {p.posts} posts</title></circle>{/if}
+            {#if hover?.i === i}<line x1={reach.x(i)} x2={reach.x(i)} y1={PAD.t} y2={H - PAD.b} class="hl" />{/if}
+            {#if p.posts}<circle cx={reach.x(i)} cy={reach.y(p.reach)} r={hover?.i === i ? 5 : 3.2} fill="#FFD21F" stroke="#0E2A47" stroke-width="1" />{/if}
             {#if i % reach.every === 0}<text x={reach.x(i)} y={H - 6} class="ax" text-anchor="middle">{dayShort(p.day)}</text>{/if}
+          {/each}
+          {#each reach.pts as p, i}
+            {@const step = (W - PAD.l - PAD.r) / Math.max(1, reach.pts.length - 1)}
+            <rect x={reach.x(i) - step / 2} y={PAD.t} width={step} height={H - PAD.t - PAD.b} fill="transparent" class="hit"
+              role="presentation" onmouseenter={(e) => showDay(i, e)} onmousemove={(e) => showDay(i, e)} onmouseleave={hideDay} onclick={(e) => showDay(i, e)} />
           {/each}
         </svg>
         <div class="legend"><span><i style="background:#1673E6"></i>Reach</span><span><i class="dot"></i>Days with posts</span></div>
@@ -202,6 +237,8 @@
               {#if p[k]}<rect x={x} width={w} y={health.y(below + p[k])} height={health.y(below) - health.y(below + p[k])} fill={c} rx="1.5"><title>{dayShort(p.day)}: {p[k]} {k}</title></rect>{/if}
             {/each}
             {#if i % health.every === 0}<text x={x + w / 2} y={HH - 6} class="ax" text-anchor="middle">{dayShort(p.day)}</text>{/if}
+            <rect x={PAD.l + i * health.bw} y={PAD.t} width={health.bw} height={HH - PAD.t - PAD.b} fill={hover?.i === i ? 'rgba(22,115,230,.06)' : 'transparent'} class="hit"
+              role="presentation" onmouseenter={(e) => showDay(i, e)} onmousemove={(e) => showDay(i, e)} onmouseleave={hideDay} onclick={(e) => showDay(i, e)} />
           {/each}
         </svg>
         <div class="legend"><span><i style="background:#2DB34E"></i>Sent</span><span><i style="background:#E5A50A"></i>Held</span><span><i style="background:#E0475B"></i>Failed</span><span><i style="background:#9AA5A1"></i>Missed</span></div>
@@ -278,10 +315,40 @@
       </section>
     </div>
   {/if}
+  {#if hover && data?.daily[hover.i]}
+    {@const d = data.daily[hover.i]}
+    <div class="daytip" style="left:{hover.x}px;top:{hover.y}px" role="tooltip" onmouseenter={() => clearTimeout(hideT)} onmouseleave={hideDay}>
+      <b>{new Date(d.day + 'T12:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</b>
+      <span class="muted">{num(d.reach)} reached · {d.sent} sent{d.held ? ` · ${d.held} held` : ''}{d.failed + d.missed ? ` · ${d.failed + d.missed} not sent` : ''}</span>
+      {#if d.items?.length}
+        <ul>{#each d.items as it (it.post_id)}<li><span class="t">{it.title}</span><span class="n">{num(it.reach)} reached{it.held ? ` · ${it.held} held` : ''}{it.failed ? ` · ${it.failed} failed` : ''}</span></li>{/each}</ul>
+        <button class="lnk" onclick={() => goToDay(d.day)}>Show this day on the calendar →</button>
+      {:else}<span class="muted">Nothing went out.</span>{/if}
+    </div>
+  {/if}
 </div>
 
 <style>
-  .stats { padding: 14px 18px 60px; display: flex; flex-direction: column; gap: 12px; max-width: 1400px }
+  .sscrim { position: fixed; inset: 0; background: rgba(17, 27, 33, .25); z-index: 400 }
+  .smodal { position: fixed; z-index: 401; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 24px)); max-height: min(80vh, 720px); display: flex; flex-direction: column; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow) }
+  .smodal header, .smodal footer { display: flex; align-items: center; gap: 10px; padding: 12px 16px }
+  .smodal header { border-bottom: 1px solid var(--line2) } .smodal header b { font-size: 22px; color: var(--t900) }
+  .smodal footer { border-top: 1px solid var(--line2); flex-wrap: wrap }
+  .smodal .sp { flex: 1 }
+  .smodal select { width: auto; max-width: 200px }
+  .sbody { overflow: auto; padding: 14px 16px }
+  .sbody .pvchat { background: var(--chat); border-radius: 10px; padding: 14px 12px }
+  .sbody .bubble { background: var(--bubble); border-radius: 9px 2px 9px 9px; padding: 8px 10px; font-size: 13.5px; box-shadow: 0 1px .5px rgba(0,0,0,.13); white-space: pre-wrap; margin-left: auto; max-width: 92% }
+  .note2 { padding: 0 16px 12px; font-size: 11.5px }
+  .hit { cursor: pointer }
+  .hl { stroke: #0E2A47; stroke-opacity: .25; stroke-dasharray: 3 3 }
+  .daytip { position: fixed; z-index: 300; width: 280px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px }
+  .daytip ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow: auto }
+  .daytip li { display: flex; flex-direction: column; border-top: 1px solid var(--line2); padding-top: 4px }
+  .daytip .t { font-weight: 600; color: var(--ink) }
+  .daytip .n { font: 11px var(--mono); color: var(--muted) }
+  .daytip .lnk { border: 0; background: none; padding: 4px 0 0; color: var(--sky); font-weight: 500; text-align: left }
+  .stats { padding: 14px 18px 60px; display: flex; flex-direction: column; gap: 12px; max-width: 1400px; height: 100%; overflow-y: auto; overscroll-behavior: contain }
   .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
   .sp { flex: 1 }
   .seg { display: inline-flex; background: var(--sunk); border-radius: 9px; padding: 2px }
@@ -359,7 +426,26 @@
     .works { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   }
   @media (max-width: 700px) {
-    .stats { padding: 10px 10px 80px }
+    .sscrim { position: fixed; inset: 0; background: rgba(17, 27, 33, .25); z-index: 400 }
+  .smodal { position: fixed; z-index: 401; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 24px)); max-height: min(80vh, 720px); display: flex; flex-direction: column; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow) }
+  .smodal header, .smodal footer { display: flex; align-items: center; gap: 10px; padding: 12px 16px }
+  .smodal header { border-bottom: 1px solid var(--line2) } .smodal header b { font-size: 22px; color: var(--t900) }
+  .smodal footer { border-top: 1px solid var(--line2); flex-wrap: wrap }
+  .smodal .sp { flex: 1 }
+  .smodal select { width: auto; max-width: 200px }
+  .sbody { overflow: auto; padding: 14px 16px }
+  .sbody .pvchat { background: var(--chat); border-radius: 10px; padding: 14px 12px }
+  .sbody .bubble { background: var(--bubble); border-radius: 9px 2px 9px 9px; padding: 8px 10px; font-size: 13.5px; box-shadow: 0 1px .5px rgba(0,0,0,.13); white-space: pre-wrap; margin-left: auto; max-width: 92% }
+  .note2 { padding: 0 16px 12px; font-size: 11.5px }
+  .hit { cursor: pointer }
+  .hl { stroke: #0E2A47; stroke-opacity: .25; stroke-dasharray: 3 3 }
+  .daytip { position: fixed; z-index: 300; width: 280px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px }
+  .daytip ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow: auto }
+  .daytip li { display: flex; flex-direction: column; border-top: 1px solid var(--line2); padding-top: 4px }
+  .daytip .t { font-weight: 600; color: var(--ink) }
+  .daytip .n { font: 11px var(--mono); color: var(--muted) }
+  .daytip .lnk { border: 0; background: none; padding: 4px 0 0; color: var(--sky); font-weight: 500; text-align: left }
+  .stats { padding: 10px 10px 80px }
     .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) }
     .grid { grid-template-columns: 1fr }
     .card.wide, .grid > .card:nth-child(1) { grid-column: span 1 }

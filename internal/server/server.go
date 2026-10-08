@@ -49,6 +49,8 @@ type Server struct {
 	sending   string
 	linker    *wa.Linker      // WhatsApp linking in progress, from the browser
 	reload    bool            // restart soon to pick up a new shared Telegram app id
+	msgOps    msgOps          // platform calls for unsend/edit (tests replace it)
+	conn      connInfo        // when each account last connected and synced
 	baseCtx   context.Context // lives as long as the server
 }
 
@@ -88,6 +90,9 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/sends/move", s.moveSend)
 	m.HandleFunc("POST /api/sends/copy", s.copySend)
 	m.HandleFunc("POST /api/sends/skip", s.skipSend)
+	m.HandleFunc("POST /api/sends/unsend", s.takeBackHandler(false))
+	m.HandleFunc("POST /api/sends/edit", s.takeBackHandler(true))
+	m.HandleFunc("GET /api/sends/pending", s.pendingSends)
 	m.HandleFunc("GET /api/changes", s.changes)
 	m.HandleFunc("POST /api/undo", s.undo)
 	m.HandleFunc("GET /api/auth/status", s.authStatus)
@@ -187,6 +192,9 @@ func (s *Server) Connect(ctx context.Context) error {
 		switch evt.(type) {
 		case *events.Connected:
 			s.setConnected(true)
+			s.mu.Lock()
+			s.conn.WASince = time.Now()
+			s.mu.Unlock()
 			go func() {
 				if err := s.syncTargets(context.Background()); err != nil {
 					log.Println("targets:", err)
@@ -194,6 +202,9 @@ func (s *Server) Connect(ctx context.Context) error {
 			}()
 		case *events.Disconnected, *events.LoggedOut, *events.StreamReplaced:
 			s.setConnected(false)
+			s.mu.Lock()
+			s.conn.WADown = time.Now()
+			s.mu.Unlock()
 		case *events.Receipt, *events.Message:
 			go s.onWAStat(evt)
 		}
@@ -231,6 +242,9 @@ func (s *Server) syncTargets(ctx context.Context) error {
 	if err := s.DB.UpsertTargets(ctx, "whatsapp", conv); err != nil {
 		return err
 	}
+	s.mu.Lock()
+	s.conn.WASync, s.conn.WAChats = time.Now(), len(conv)
+	s.mu.Unlock()
 	// One-time import of the CLI allowlist.
 	if b, err := os.ReadFile(filepath.Join(s.DataDir, "allow.txt")); err == nil {
 		for _, j := range strings.Fields(string(b)) {
@@ -288,6 +302,22 @@ func (s *Server) mutated(w http.ResponseWriter, r *http.Request, id int64, extra
 		out[k] = v
 	}
 	writeJSON(w, out)
+}
+
+// connInfo is shown in Settings → Accounts: when each account connected, went
+// down, and last synced its chats.
+type connInfo struct {
+	WASince, WADown, WASync time.Time
+	WAChats                 int
+	TGSync                  time.Time
+	TGChats                 int
+}
+
+func unixOrZero(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.Unix()
 }
 
 // ---------- state ----------
@@ -575,6 +605,7 @@ func (s *Server) saveSet(w http.ResponseWriter, r *http.Request) {
 var editableSettings = map[string]string{
 	"tg_queue_hours": "Telegram queue window",
 	"auto_update":    "automatic updates",
+	"send_delay":     "undo-send pause",
 	"stats_people":   "who read it lists",
 	"timezone":       "time zone", "safe_mode": "safe mode", "gap_min": "minimum gap", "gap_max": "maximum gap",
 	"daily_cap": "daily limit", "quiet_start": "quiet hours", "quiet_end": "quiet hours", "grace_min": "late-send grace",
@@ -592,6 +623,10 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		label, ok := editableSettings[k]
 		if !ok {
 			fail(w, 400, fmt.Errorf("unknown setting %q", k))
+			return
+		}
+		if k == "send_delay" && !contains([]string{"0", "30", "60", "120", "300"}, v) {
+			fail(w, 400, fmt.Errorf("send_delay is 0, 30, 60, 120 or 300 seconds"))
 			return
 		}
 		if k == "timezone" {

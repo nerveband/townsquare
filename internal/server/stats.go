@@ -662,10 +662,26 @@ func (s *Server) buildSummary(ctx context.Context, f statFilter) map[string]any 
 		Failed  int    `json:"failed"`
 		Missed  int    `json:"missed"`
 		Members int    `json:"members"`
+		// What went out that day (for hovering a day on a chart), most reached first.
+		Items []*dayItem `json:"items"`
 	}
 	daily := make([]dayRow, len(days))
 	for i, d := range days {
 		daily[i].Day = d
+		daily[i].Items = []*dayItem{}
+	}
+	item := func(i int, postID int64) *dayItem {
+		for _, it := range daily[i].Items {
+			if it.PostID == postID {
+				return it
+			}
+		}
+		it := &dayItem{PostID: postID, Title: "Post"}
+		if p := postByID[postID]; p != nil {
+			it.Title = title(p)
+		}
+		daily[i].Items = append(daily[i].Items, it)
+		return it
 	}
 	seenPost := map[string]bool{}
 	for _, r := range rows {
@@ -674,6 +690,7 @@ func (s *Server) buildSummary(ctx context.Context, f statFilter) map[string]any 
 			continue
 		}
 		daily[i].Reach += r.Reach()
+		item(i, r.PostID).Reach += r.Reach()
 		k := fmt.Sprintf("%d|%s", r.ScheduleID, r.Occ)
 		if !seenPost[k] {
 			seenPost[k] = true
@@ -692,15 +709,26 @@ func (s *Server) buildSummary(ctx context.Context, f statFilter) map[string]any 
 		if !ok {
 			continue
 		}
+		it := item(i, d.PostID)
 		switch d.State {
-		case "sent":
+		case "sent", "unsent":
 			daily[i].Sent++
+			it.Sent++
 		case "blocked":
 			daily[i].Held++
+			it.Held++
 		case "failed":
 			daily[i].Failed++
+			it.Failed++
 		case "missed":
 			daily[i].Missed++
+			it.Failed++
+		}
+	}
+	for i := range daily {
+		sort.Slice(daily[i].Items, func(a, b int) bool { return daily[i].Items[a].Reach > daily[i].Items[b].Reach })
+		if len(daily[i].Items) > 8 {
+			daily[i].Items = daily[i].Items[:8]
 		}
 	}
 
@@ -916,6 +944,15 @@ func (s *Server) trackingSince(ctx context.Context) int64 {
 	var at int64
 	_ = s.DB.QueryRowContext(ctx, `SELECT COALESCE(MIN(sent_at),0) FROM stat_sends`).Scan(&at)
 	return at
+}
+
+type dayItem struct {
+	PostID int64  `json:"post_id"`
+	Title  string `json:"title"`
+	Reach  int    `json:"reach"`
+	Sent   int    `json:"sent"`
+	Held   int    `json:"held"`
+	Failed int    `json:"failed"`
 }
 
 // statsPost is the per-post panel: each send's numbers, reads over 48 hours, and

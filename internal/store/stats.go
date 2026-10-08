@@ -51,6 +51,7 @@ type StatMsg struct {
 	ID       string
 	ServerID int64 // WhatsApp channel server id
 	Kind     string
+	Text     bool // carries the caption or text (not stored with stats)
 }
 
 // StatSend describes a delivery for stats.

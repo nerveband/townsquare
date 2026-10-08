@@ -90,6 +90,9 @@ func (s *Server) syncTelegram(ctx context.Context) error {
 	if had == 0 {
 		_, _ = s.DB.ExecContext(ctx, `UPDATE targets SET allowed=1 WHERE jid='tg:self'`)
 	}
+	s.mu.Lock()
+	s.conn.TGSync, s.conn.TGChats = time.Now(), len(conv)
+	s.mu.Unlock()
 	log.Printf("telegram chats: %d synced", len(conv))
 	return nil
 }
@@ -109,8 +112,8 @@ func (s *Server) deliverTelegram(ctx context.Context, o store.Occurrence, jid st
 		if len(media) > 0 {
 			kind = media[0].Kind
 		}
-		for _, id := range ids {
-			*msgs = append(*msgs, store.StatMsg{Platform: "telegram", ID: strconv.Itoa(id), Kind: kind})
+		for i, id := range ids {
+			*msgs = append(*msgs, store.StatMsg{Platform: "telegram", ID: strconv.Itoa(id), Kind: kind, Text: i == 0})
 		}
 	}
 	if len(ids) == 0 {
@@ -168,6 +171,9 @@ func (s *Server) telegramState(w http.ResponseWriter, r *http.Request) {
 	if st.AppSource != "" {
 		out["app_source"] = st.AppSource
 	}
+	s.mu.Lock()
+	out["last_sync"] = unixOrZero(s.conn.TGSync)
+	s.mu.Unlock()
 	if s.Bot != nil {
 		var bc int
 		_ = s.DB.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM targets WHERE platform='telegram_bot' AND gone=0`).Scan(&bc)

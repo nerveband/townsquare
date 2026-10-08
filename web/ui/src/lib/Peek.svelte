@@ -2,7 +2,7 @@
   import { waHTML, waPlain } from './wafmt.js'
   import { app, api, act, tz, target, tagOf, clientOf } from './state.svelte.js'
   import { time12, prettyDay, dayKey, ruleLabel, tzShort } from './time.js'
-  import { holdPeek, closePeek, openSend } from './peek.js'
+  import { holdPeek, closePeek, openSend, wentOut } from './peek.js'
   import Thumb from './Thumb.svelte'
   import TargetPicker from './TargetPicker.svelte'
 
@@ -53,6 +53,11 @@
   async function sendNow() { app.peek = null; await act(api('POST', `/api/posts/${p.id}/send-now`), `Sending ${p.title || 'post'} now`) }
   async function skip() { app.peek = null; await act(api('POST', '/api/sends/skip', { post_id: p.id, schedule_id: s.schedule_id, occ: s.occ })) }
   async function del() { app.peek = null; await act(api('DELETE', `/api/posts/${p.id}`)) }
+  function repost() {
+    app.peek = null
+    app.composer = { post: { title: p.title ? `${p.title} (again)` : '', caption: s.caption, media: [...s.media], targets: [...s.targets],
+      tag_id: p.tag_id ?? null, client_id: p.client_id ?? null, schedules: [] }, scope: 'all', repost: true }
+  }
   async function pause() { app.peek = null; await act(api('PUT', `/api/posts/${p.id}`, { ...p, status: p.status === 'paused' ? 'scheduled' : 'paused' })) }
 </script>
 
@@ -123,7 +128,11 @@
       {#if s.repeating}<p class="note">Part of a repeating post. Edits ask whether they apply to this send or the series.</p>{/if}
     </div>
     <div class="acts">
-      {#if s.repeating}
+      {#if wentOut(s)}
+        <button onclick={() => openSend(s)}>Details &amp; stats</button>
+        <button onclick={repost}>Post again</button>
+        {#if s.repeating}<button onclick={() => openSend(s, 'future')}>Edit upcoming</button>{/if}
+      {:else if s.repeating}
         <button onclick={() => openSend(s, 'one')}>Edit this send</button>
         <button onclick={() => openSend(s, 'all')}>Edit series</button>
         <button onclick={skip}>Skip</button>
@@ -131,8 +140,10 @@
         <button onclick={() => openSend(s, 'all')}>Edit</button>
         <button onclick={del}>Delete</button>
       {/if}
-      <button onclick={pause}>{p.status === 'paused' ? 'Resume' : 'Pause'}</button>
-      <button onclick={sendNow}>Send now</button>
+      {#if !wentOut(s)}
+        <button onclick={pause}>{p.status === 'paused' ? 'Resume' : 'Pause'}</button>
+        <button onclick={sendNow}>Send now</button>
+      {/if}
     </div>
   </div>
 {/if}
