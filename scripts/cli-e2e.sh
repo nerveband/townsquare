@@ -12,6 +12,7 @@ if [ -z "$BIN" ]; then
   go build -o "$BIN" ./cmd/townsquare || exit 1
 fi
 PORT="${TS_E2E_PORT:-8897}"
+NWORK="$WORK"; command -v cygpath >/dev/null 2>&1 && NWORK="$(cygpath -m "$WORK")"  # native path for file: values on Windows
 export TOWNSQUARE_CONFIG_DIR="$WORK/cfg" TOWNSQUARE_URL="" TOWNSQUARE_API_KEY="" TOWNSQUARE_PROFILE="" TOWNSQUARE_OUTPUT=""
 pass=0; failed=0
 ok()   { pass=$((pass+1)); }
@@ -110,8 +111,8 @@ expect 0 "bulk" -- "$T" posts bulk --body '{"ids":[1,99999],"action":"pause"}' -
 expect 0 "resume again" -- "$T" posts resume 1
 
 # Files (artifacts) and uploads.
-expect 0 "deliver file" -- "$T" stats export --days 30 --deliver "file:$WORK/s.csv"; [ -s "$WORK/s.csv" ] && ok || bad "csv not written"
-expect 5 "no overwrite" -- "$T" stats export --days 30 --deliver "file:$WORK/s.csv"
+expect 0 "deliver file" -- "$T" stats export --days 30 --deliver "file:$NWORK/s.csv"; [ -s "$WORK/s.csv" ] && ok || bad "csv not written"
+expect 5 "no overwrite" -- "$T" stats export --days 30 --deliver "file:$NWORK/s.csv"
 expect 2 "bad scheme" -- "$T" stats export --deliver "ftp:x"; has "$ERR" "file:PATH" "schemes listed"
 printf 'hello' > "$WORK/doc.txt"
 expect 0 "upload" -- "$T" media upload --file "$WORK/doc.txt" --kind document --idempotency-key e2e-up; has "$OUT" '"id"' "upload id"
