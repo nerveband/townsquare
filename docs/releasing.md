@@ -64,6 +64,10 @@ It updates itself from releases like every other install.
   production). To ship it, cut a release.
 - Only one server can use a data folder at a time (`serve.lock`), so a second copy can't
   double-send.
+- Keep production listening on `127.0.0.1:8890` and reach it remotely through the tailnet name
+  (https). With the macOS firewall on, listening on a network address needs a firewall
+  approval, and each update (a new ad-hoc signed binary) asks again. Loopback and the tailnet
+  connection aren't affected.
 
 ## How updates work (and what not to break)
 
