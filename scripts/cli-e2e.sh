@@ -73,6 +73,7 @@ expect 0 "count" -- "$T" posts list --count; has "$OUT" '"count":' "count"
 expect 0 "transform" -- "$T" posts list --limit 1 --transform items.0.id
 expect 0 "jsonl" -- "$T" -o jsonl targets list --limit 3 --id-only
 expect 0 "text" -- "$T" -o text tags list; has "$OUT" "NAME" "text table"
+expect 0 "text columns" -- "$T" -o text posts list --limit 2 --fields id,next_at; has "$OUT" "NEXT_AT" "--fields picks text columns"
 case "$OUT" in *$'\033'*) bad "ANSI in output" ;; *) ok ;; esac
 expect 0 "raw" -- "$T" -o raw status get; has "$OUT" '"safe_mode"' "raw passthrough"
 expect 0 "max depth" -- "$T" posts get 2 --max-depth 1; has "$OUT" "items]" "depth collapsed"

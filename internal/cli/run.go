@@ -73,6 +73,7 @@ func Run(e Env, args []string) int {
 }
 
 func run(o *opts) error {
+	textCols = o.fields
 	if len(o.words) == 0 {
 		if o.flags["--version"] != "" {
 			fmt.Println("townsquare", env.Version)

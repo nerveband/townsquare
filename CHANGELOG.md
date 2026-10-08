@@ -6,6 +6,9 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Fixed
+- `-o text` tables now show the columns you ask for with `--fields`.
+
 ## [v0.7.0] - 2026-10-08
 
 ### Added

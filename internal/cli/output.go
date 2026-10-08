@@ -70,6 +70,9 @@ func envelope(items []any, total, offset, limit int, paged bool) map[string]any 
 	return env
 }
 
+// textCols are the --fields, used as table columns in text output.
+var textCols []string
+
 // scopeNote is repeated in list output: "remote" for server data, "local" otherwise.
 var scopeNote = ""
 
@@ -288,7 +291,15 @@ func printTable(w io.Writer, items []any) {
 		return
 	}
 	var cols []string
-	for _, k := range []string{"id", "jid", "name", "title", "kind", "status", "scope", "version", "summary", "actor", "next_at", "members", "allowed"} {
+	for _, f := range textCols { // --fields picks the columns, in order
+		if _, ok := first[f]; ok {
+			cols = append(cols, f)
+		}
+	}
+	for _, k := range []string{"id", "jid", "at", "name", "title", "kind", "status", "version", "summary", "actor", "next_at", "members", "allowed"} {
+		if len(textCols) > 0 {
+			break
+		}
 		if _, ok := first[k]; ok {
 			cols = append(cols, k)
 		}
