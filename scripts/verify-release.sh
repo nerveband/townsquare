@@ -27,6 +27,6 @@ if [ -z "$P" ] || [ -z "$PREV" ]; then echo "- skipped the update test (no earli
 gh release download "$PREV" --pattern "townsquare-$PREV-$P" --dir "$TMP" >/dev/null
 chmod +x "$TMP/townsquare-$PREV-$P"
 env -u TOWNSQUARE_UPDATE_URL "$TMP/townsquare-$PREV-$P" --data "$TMP/data" update >/dev/null || fail "$PREV couldn't download $V"
-got="$(env -u TOWNSQUARE_UPDATE_URL "$TMP/townsquare-$PREV-$P" --data "$TMP/data" version | awk '{print $2}')"
-[ "$got" = "$V" ] || fail "$PREV installed, then ran $got instead of $V"
+got="$(env -u TOWNSQUARE_UPDATE_URL "$TMP/townsquare-$PREV-$P" --data "$TMP/data" version)"   # text or JSON, by version
+case "$got" in *"$V"*) ;; *) fail "$PREV installed, then ran something else: $got" ;; esac
 echo "✓ $PREV updates itself to $V (signature, checksum and hand-off)"
