@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-10-08
+
 ### Added
 - **More than one account, when you need it.** Settings → Accounts → "Add another WhatsApp
   number" or "Add another Telegram account" links a second (or third) account with its own QR
