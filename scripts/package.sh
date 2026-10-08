@@ -66,9 +66,14 @@ cat > "$APP/Contents/Info.plist" <<PL
 </dict></plist>
 PL
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
-codesign --force --deep --sign - "$APP" 2>/dev/null
+codesign --force --deep --sign - "$APP" || { echo "✗ codesign failed"; exit 1; }
 mkdir -p "$TMP/dmg" && cp -R "$APP" "$TMP/dmg/" && ln -s /Applications "$TMP/dmg/Applications"
-hdiutil create -quiet -volname "Townsquare" -srcfolder "$TMP/dmg" -ov -format UDZO "dist/Townsquare-$V-mac.dmg"
+# hdiutil sometimes fails with "resource busy" right after another disk image was used; retry.
+for try in 1 2 3; do
+  hdiutil create -quiet -volname "Townsquare" -srcfolder "$TMP/dmg" -ov -format UDZO "dist/Townsquare-$V-mac.dmg" && break
+  [ "$try" = 3 ] && { echo "✗ hdiutil create failed"; exit 1; }
+  echo "hdiutil create failed; retrying ($try)"; sleep 5
+done
 echo "✓ dmg"
 
 # Debian packages.
