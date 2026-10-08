@@ -3,11 +3,13 @@ module github.com/nerveband/townsquare
 go 1.27.1
 
 require (
+	github.com/go-telegram/bot v1.27.0
 	github.com/gotd/td v0.162.0
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/teambition/rrule-go v1.8.2
 	go.mau.fi/whatsmeow v0.0.0-20261006124319-9399289b022b
+	golang.org/x/image v0.46.0
 	google.golang.org/protobuf v1.36.12
 	modernc.org/sqlite v1.60.1
 	tailscale.com v1.104.0
@@ -36,7 +38,6 @@ require (
 	github.com/go-faster/xor v1.0.0 // indirect
 	github.com/go-faster/yaml v0.4.6 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
-	github.com/go-telegram/bot v1.27.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.3 // indirect

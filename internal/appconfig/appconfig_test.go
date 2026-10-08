@@ -23,4 +23,5 @@ func TestConfigAndLock(t *testing.T) {
 	if !ok || err != nil {
 		t.Fatalf("first lock: %v %v", ok, err)
 	}
+	t.Cleanup(Unlock)
 }

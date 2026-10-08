@@ -43,10 +43,19 @@ func Convert(ctx context.Context, kind, in string) (*Media, error) {
 	switch kind {
 	case "image":
 		m.Path, m.Mime = filepath.Join(dir, "image.jpg"), "image/jpeg"
+		if Tool("ffmpeg") == "" {
+			if m.Width, m.Height, err = goImage(in, m.Path, 1600, 85); err != nil {
+				return nil, err
+			}
+			break
+		}
 		if err := ff(ctx, "-i", in, "-vf", "scale='min(1600,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease", "-q:v", "3", m.Path); err != nil {
 			return nil, err
 		}
 	case "video":
+		if Tool("ffmpeg") == "" {
+			return nil, ErrNoFFmpeg
+		}
 		m.Path, m.Mime = filepath.Join(dir, "video.mp4"), "video/mp4"
 		if err := ff(ctx, "-i", in, "-vf", "scale='min(1280,iw)':'min(1280,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
 			"-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p", "-profile:v", "main",
@@ -54,6 +63,9 @@ func Convert(ctx context.Context, kind, in string) (*Media, error) {
 			return nil, err
 		}
 	case "voice":
+		if Tool("ffmpeg") == "" {
+			return nil, ErrNoFFmpeg
+		}
 		m.Path, m.Mime = filepath.Join(dir, "voice.ogg"), "audio/ogg; codecs=opus"
 		if err := ff(ctx, "-i", in, "-vn", "-ac", "1", "-ar", "48000", "-c:a", "libopus", "-b:a", "32k", "-application", "voip", m.Path); err != nil {
 			return nil, err
@@ -98,6 +110,13 @@ func describe(ctx context.Context, kind string, m *Media) error {
 		}
 		if ff(ctx, args...) == nil {
 			m.Thumb, _ = os.ReadFile(thumb)
+		} else if kind == "image" {
+			if w, h, err := goImage(m.Path, thumb, 96, 60); err == nil {
+				m.Thumb, _ = os.ReadFile(thumb)
+				if m.Width == 0 {
+					m.Width, m.Height = probeGo(m.Path, w, h)
+				}
+			}
 		}
 	}
 	if kind == "voice" {
@@ -112,12 +131,20 @@ func Preview(ctx context.Context, kind, in, out string) error {
 	if kind == "video" {
 		args = append([]string{"-ss", "0.5"}, args...)
 	}
+	if kind == "image" && Tool("ffmpeg") == "" {
+		_, _, err := goImage(in, out, 640, 80)
+		return err
+	}
 	return ff(ctx, args...)
 }
 
 func ff(ctx context.Context, args ...string) error {
 	full := append([]string{"-hide_banner", "-loglevel", "error", "-y"}, args...)
-	out, err := exec.CommandContext(ctx, "ffmpeg", full...).CombinedOutput()
+	bin := Tool("ffmpeg")
+	if bin == "" {
+		return ErrNoFFmpeg
+	}
+	out, err := exec.CommandContext(ctx, bin, full...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ffmpeg: %v: %s", err, strings.TrimSpace(string(out)))
 	}
@@ -125,7 +152,11 @@ func ff(ctx context.Context, args ...string) error {
 }
 
 func probe(ctx context.Context, m *Media) {
-	out, err := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_entries", "format=duration:stream=width,height",
+	bin := Tool("ffprobe")
+	if bin == "" {
+		return
+	}
+	out, err := exec.CommandContext(ctx, bin, "-v", "error", "-show_entries", "format=duration:stream=width,height",
 		"-of", "json", m.Path).Output()
 	if err != nil {
 		return
@@ -150,7 +181,11 @@ func probe(ctx context.Context, m *Media) {
 
 // waveform returns 64 loudness samples (0..100) for the voice-note bubble.
 func waveform(ctx context.Context, path string) []byte {
-	out, err := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error", "-i", path,
+	bin := Tool("ffmpeg")
+	if bin == "" {
+		return nil
+	}
+	out, err := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "error", "-i", path,
 		"-ac", "1", "-ar", "8000", "-f", "s16le", "-").Output()
 	if err != nil || len(out) < 128 {
 		return nil

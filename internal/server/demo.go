@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nerveband/townsquare/internal/store"
+	"github.com/nerveband/townsquare/internal/wa"
 )
 
 // Demo mode: sample groups and posts for trying the app and taking screenshots.
@@ -67,6 +70,10 @@ func (s *Server) SeedDemo(ctx context.Context) error {
 		{"recap", "video", "event-recap.mp4"}, {"voice", "voice", "volunteer-call.m4a"}, {"agenda", "document", "board-agenda.pdf"},
 	} {
 		path, err := makeDemoFile(ctx, s.DataDir, m.key, m.file)
+		if errors.Is(err, exec.ErrNotFound) {
+			log.Println("demo: ffmpeg isn't installed, so the sample posts have no photos, videos or voice notes")
+			break
+		}
 		if err != nil {
 			return fmt.Errorf("demo media %s: %w", m.file, err)
 		}
@@ -111,6 +118,13 @@ func (s *Server) SeedDemo(ctx context.Context) error {
 	}
 	for i := range posts {
 		p := &posts[i]
+		var ms []int64 // sample media missing when ffmpeg isn't installed
+		for _, m := range p.Media {
+			if m != 0 {
+				ms = append(ms, m)
+			}
+		}
+		p.Media = ms
 		if _, err := s.DB.Mutate(ctx, "you", "created "+p.Title, nil, func(tx *store.Tx) error { return tx.PutPost(p) }); err != nil {
 			return err
 		}
@@ -256,8 +270,12 @@ func makeDemoFile(ctx context.Context, dataDir, key, name string) (string, error
 		return out, os.WriteFile(out, []byte(demoPDF), 0o600)
 	}
 	full := append([]string{"-hide_banner", "-loglevel", "error", "-y"}, args...)
-	if b, err := exec.CommandContext(ctx, "ffmpeg", full...).CombinedOutput(); err != nil {
-		return "", fmt.Errorf("%v: %s", err, strings.TrimSpace(string(b)))
+	bin := wa.Tool("ffmpeg")
+	if bin == "" {
+		return "", exec.ErrNotFound
+	}
+	if b, err := exec.CommandContext(ctx, bin, full...).CombinedOutput(); err != nil {
+		return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(string(b)))
 	}
 	return out, nil
 }

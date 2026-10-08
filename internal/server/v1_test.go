@@ -78,6 +78,7 @@ func TestStatsSummaryEmptyAndFiltered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	s := &Server{DB: db}
 	for _, q := range []string{"", "?days=7&platform=telegram", "?days=90&tag=0&client=1,2&chat=x@g.us"} {
 		rec := httptest.NewRecorder()
@@ -99,6 +100,7 @@ func TestUpdateEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	dir := t.TempDir()
 	s := &Server{DB: db, DataDir: dir, Updater: update.New(dir, "v0.5.0-23-gabc1234")}
 	rec := httptest.NewRecorder()
@@ -151,6 +153,7 @@ func TestNextFreeWindowAvoidsSends(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	s := &Server{DB: db}
 	now := time.Now().UTC().Truncate(time.Minute)
 	if got := s.nextFreeWindow(t.Context(), now); !got.Equal(now) {

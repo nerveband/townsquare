@@ -12,6 +12,7 @@ func TestStatEventsCountOncePerPerson(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	sched := time.Now().Add(-2 * time.Hour)
 	db.RecordDelivery(ctx, 1, 9, "2026-10-08T06:00", "g@g.us", "sent", "A1", "")
 	db.RecordStatSend(ctx, StatSend{PostID: 1, ScheduleID: 9, Occ: "2026-10-08T06:00", Chat: "g@g.us", Platform: "whatsapp", Kind: "image", Members: 10, SchedAt: sched},

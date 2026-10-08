@@ -110,8 +110,9 @@ check **Allow** next to each group you want to post to. That's it: write your fi
 **Keep it running.** Townsquare only sends while it's running, so use a computer that stays on.
 In **Settings → General**, check **Start when I log in**.
 
-**Videos and voice notes** need [ffmpeg](https://ffmpeg.org/download.html). On a Mac:
-`brew install ffmpeg`. On Linux: `sudo apt install ffmpeg`.
+**Photos and files work right away. Videos and voice notes** need
+[ffmpeg](https://ffmpeg.org/download.html): `brew install ffmpeg` on a Mac,
+`winget install ffmpeg` on Windows, `sudo apt install ffmpeg` on Linux.
 
 ### Updates happen on their own
 

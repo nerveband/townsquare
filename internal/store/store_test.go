@@ -42,6 +42,7 @@ func TestMutateUndoRedo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	p := &Post{Title: "Flyer", Caption: "v1", Status: "scheduled", Targets: []string{"g1"},
 		Schedules: []Schedule{{Start: "2026-05-06T18:30", TZ: "America/New_York", RRule: "FREQ=WEEKLY"}}}
 	if _, err := db.Mutate(ctx, "you", "create", nil, func(tx *Tx) error { return tx.PutPost(p) }); err != nil {
@@ -101,6 +102,7 @@ func TestMigrateIgnoresJIDsAndRepairsHugeIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	_, _ = db.ExecContext(ctx, `INSERT INTO changes(at,actor,summary,items) VALUES(1,'you','x',?)`,
 		`[{"type":"target","id":"120363000000000447@g.us","before":null,"after":null},{"type":"post","id":"120363000000000448","before":null,"after":{"id":120363000000000448,"schedules":[{"id":120363000000000449,"start":"2026-01-01T09:00","tz":"UTC"}]}}]`)
 	_, _ = db.ExecContext(ctx, `UPDATE sqlite_sequence SET seq=120363000000000447`)
@@ -109,6 +111,7 @@ func TestMigrateIgnoresJIDsAndRepairsHugeIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() })
 	var seq int64
 	_ = db.QueryRowContext(ctx, `SELECT seq FROM sqlite_sequence WHERE name='posts'`).Scan(&seq)
 	if seq >= maxSafeID || seq < 2 {

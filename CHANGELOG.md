@@ -16,6 +16,10 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
   creating WhatsApp channels. `townsquare config` and `townsquare autostart` do the same in a
   terminal. Opening the app and start at login use the saved address.
 - Only one Townsquare can run on a data folder at a time, so two copies can never double-send.
+- **Photos work without ffmpeg.** The Mac app and Windows exe can now post photos (JPEG, PNG,
+  GIF, WebP) right away. Videos and voice notes still need ffmpeg, and the error says how to
+  get it. The app also finds ffmpeg installed with Homebrew or winget when opened from Finder
+  or the Start menu, and the demo runs without it.
 - `townsquare due` lists posts due soon.
 ### API changes
 - New `GET/PATCH /api/v1/config`, `POST /api/v1/restart`, `PUT/DELETE /api/v1/telegram/bot`,

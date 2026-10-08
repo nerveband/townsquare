@@ -3,6 +3,7 @@ package tg
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -44,7 +45,7 @@ func TestResolveAppOrder(t *testing.T) {
 	if a, src, _ := ResolveApp(dir); a.ID != 333 || src != "own" {
 		t.Fatalf("own: %+v %q", a, src)
 	}
-	if fi, _ := os.Stat(filepath.Join(dir, "telegram.app")); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(filepath.Join(dir, "telegram.app")); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Fatalf("telegram.app mode %v", fi.Mode().Perm())
 	}
 	_ = RemoveOwnApp(dir)

@@ -30,3 +30,11 @@ func Lock(dataDir string) (bool, error) {
 }
 
 var lockFile *os.File
+
+// Unlock releases the lock (tests; a server keeps it until it exits).
+func Unlock() {
+	if lockFile != nil {
+		lockFile.Close()
+		lockFile = nil
+	}
+}
