@@ -1,5 +1,5 @@
 <script>
-  import { app, api, act, tz, defaultTZ, avatar, target, toast, today, quietFor } from './state.svelte.js'
+  import { app, api, act, tz, defaultTZ, avatar, target, toast, today, quietFor, accountLabel } from './state.svelte.js'
   import { localStr, dayKey, hhmm, prettyDay, time12, time12Str, parseRule, buildRule, ruleLabel, BYDAY, weekday, tzShort, fromLocal, zoneName } from './time.js'
   import TargetPicker from './TargetPicker.svelte'
   import NamedPicker from './NamedPicker.svelte'
@@ -218,7 +218,7 @@
       <div class="chips">
         {#each targets as j (j)}
           {@const a = avatar(j)}
-          <span class="chip"><span class="av" style="background:{a.bg}">{a.ini}</span><span>{target(j).name}</span><button aria-label="Remove {target(j).name}" onclick={() => (targets = targets.filter((x) => x !== j))}>×</button></span>
+          <span class="chip"><span class="av" style="background:{a.bg}">{a.ini}</span><span>{target(j).name}{#if accountLabel(j)}<small class="acc"> · {accountLabel(j)}</small>{/if}</span><button aria-label="Remove {target(j).name}" onclick={() => (targets = targets.filter((x) => x !== j))}>×</button></span>
         {/each}
         <button class="add" onclick={() => (picking = !picking)}>{picking ? 'Done' : '+ Add'}</button>
       </div>
@@ -417,6 +417,7 @@
     footer .btn { white-space: nowrap }
     textarea { font-size: 16px }
   }
+  .chip .acc { color: var(--t800); font-weight: 600 }
   .repost { margin: 0 0 10px; background: var(--note); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--t900) }
   .pvseg { display: inline-flex; background: var(--sunk); border-radius: 7px; padding: 2px; margin-left: 4px }
   .pvseg button { border: 0; background: transparent; border-radius: 5px; padding: 2px 9px; font-size: 12px; color: var(--ink2) }

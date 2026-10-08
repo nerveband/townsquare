@@ -51,7 +51,11 @@ type Client struct {
 }
 
 // New returns nil, nil when no Telegram app id is available (see ResolveApp).
-func New(dataDir string) (*Client, error) {
+func New(dataDir string) (*Client, error) { return NewIn(dataDir, dataDir) }
+
+// NewIn uses the app id from dataDir and keeps the login session in sessionDir
+// (an extra account's own folder).
+func NewIn(dataDir, sessionDir string) (*Client, error) {
 	app, source, err := ResolveApp(dataDir)
 	if err != nil {
 		return nil, err
@@ -61,11 +65,11 @@ func New(dataDir string) (*Client, error) {
 	}
 	id := app.ID
 	lines := []string{"", app.Hash}
-	cl := &Client{dataDir: dataDir, appID: id, appHash: strings.TrimSpace(lines[1]), source: source, state: State{Configured: true, Status: "starting", AppSource: source}}
+	cl := &Client{dataDir: sessionDir, appID: id, appHash: strings.TrimSpace(lines[1]), source: source, state: State{Configured: true, Status: "starting", AppSource: source}}
 	d := tgapi.NewUpdateDispatcher()
 	cl.loggedIn = qrlogin.OnLoginToken(d)
 	cl.c = telegram.NewClient(id, cl.appHash, telegram.Options{
-		SessionStorage: &session.FileStorage{Path: filepath.Join(dataDir, "telegram.session")},
+		SessionStorage: &session.FileStorage{Path: filepath.Join(sessionDir, "telegram.session")},
 		UpdateHandler:  d,
 		Device: telegram.DeviceConfig{
 			DeviceModel: "Townsquare", SystemVersion: "server", AppVersion: "1.0",

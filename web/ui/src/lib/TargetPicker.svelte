@@ -1,6 +1,7 @@
 <script>
   import { app, avatar, KIND_LABEL } from './state.svelte.js'
   import Platform from './Platform.svelte'
+  import { accountLabel } from './state.svelte.js'
   let { selected = $bindable([]), compact = false } = $props()
   let q = $state('')
   let client = $state('')
@@ -49,7 +50,7 @@
         <input type="checkbox" checked={selected.includes(t.jid)} disabled={!t.can_send && !selected.includes(t.jid)} onchange={() => toggle(t.jid)} />
         <span class="av" style="background:{a.bg}">{a.ini}</span>
         {#if hasTelegram}<Platform platform={t.platform} />{/if}
-        <span class="nm">{t.starred ? '★ ' : ''}{t.name}{#if t.parent && t.parent !== t.name}<i> · {t.parent}</i>{/if}</span>
+        <span class="nm">{t.starred ? '★ ' : ''}{t.name}{#if t.parent && t.parent !== t.name}<i> · {t.parent}</i>{/if}{#if t.account}<b class="acc">{accountLabel(t.jid)}</b>{/if}</span>
         {#if safe && !t.allowed && t.can_send}<span class="flag" title="Safe mode is on: this target is not on the allowlist, so sends are held back">held</span>{/if}
         {#if !t.can_send}<span class="flag">admins only</span>{/if}
         <span class="k">{KIND_LABEL[t.kind] || t.kind}</span>
@@ -79,4 +80,5 @@
   .nm i { color: var(--muted); font-style: normal }
   .k { font: 400 10px var(--mono); color: var(--muted); flex: none }
   .flag { font-size: 10px; color: #865A07; background: #FBF0D9; border-radius: 4px; padding: 0 5px; flex: none }
+  .acc { margin-left: 6px; font: 600 10.5px var(--sans); color: var(--t800); background: var(--sky-soft); border-radius: 5px; padding: 1px 6px }
 </style>

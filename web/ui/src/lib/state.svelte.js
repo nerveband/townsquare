@@ -17,6 +17,7 @@ export const app = $state({
   composer: null, // { post, occ?, scope }
   sent: null, // a send that went out, open in the sent-post view
   showDrafts: false,
+  accounts: [], // linked accounts; only extras (id > 0) ever show up next to chat names
   peek: null, peekPinned: false,
   toast: null,
   error: '',
@@ -68,6 +69,14 @@ export async function loadState() {
 
 export async function loadTargets() {
   app.targets = await api('GET', '/api/targets')
+  if (app.targets.some((t) => t.account > 0)) app.accounts = await api('GET', '/api/accounts').catch(() => app.accounts)
+}
+
+/** The extra account a chat posts from ("" for the first account: most people only have that one). */
+export function accountLabel(jid) {
+  const t = app.targets.find((x) => x.jid === jid)
+  if (!t || !t.account) return ''
+  return app.accounts.find((a) => a.id === t.account)?.label || `account ${t.account}`
 }
 
 export function visibleRange() {

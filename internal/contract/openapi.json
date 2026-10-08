@@ -74,6 +74,10 @@
    "description": "Link or unlink your WhatsApp account from the browser or an agent."
   },
   {
+   "name": "Accounts",
+   "description": "Optional: more than one WhatsApp number or Telegram account. Most people need only the first one."
+  },
+  {
    "name": "System",
    "description": "Version, signed self-updates, start at login, and stopping the server."
   }
@@ -4451,6 +4455,520 @@
     }
    }
   },
+  "/accounts": {
+   "get": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "List linked accounts",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Account"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "description": "The first WhatsApp and Telegram account (id 0), then any extra ones.",
+    "operationId": "list_linked_accounts",
+    "x-cli": {
+     "name": "accounts list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare accounts list",
+      "townsquare accounts list --fields id,platform,label,who,connected"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
+   },
+   "post": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Add another account",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Account"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Starts linking a second (or third) WhatsApp number or Telegram account. Scan GET /accounts/{id}/qr.png. Its chats then show up in /targets with ids like wa@3:… and post from that account.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "platform": {
+          "type": "string",
+          "enum": [
+           "whatsapp",
+           "telegram"
+          ]
+         },
+         "label": {
+          "type": "string"
+         },
+         "phone": {
+          "type": "string",
+          "description": "WhatsApp: optional, for a typed pairing code"
+         }
+        },
+        "required": [
+         "platform",
+         "label"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "add_another_account",
+    "x-cli": {
+     "name": "accounts create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare accounts create --platform whatsapp --label 'ISLA phone' --dry-run",
+      "townsquare accounts create --platform telegram --label 'Center Telegram'"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
+  "/accounts/{id}": {
+   "get": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Get an extra account",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Account"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "get_an_extra_account",
+    "x-cli": {
+     "name": "accounts get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare accounts get 3"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   },
+   "patch": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Rename an extra account",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Account"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Admin.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "label": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "label"
+        ]
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "rename_an_extra_account",
+    "x-cli": {
+     "name": "accounts update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare accounts update 3 --label 'ISLA office phone'"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   },
+   "delete": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Remove an extra account",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "changed": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Admin. Logs it out and forgets it. Its chats are marked gone; posts that still list them report those sends as failed.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "remove_an_extra_account",
+    "x-cli": {
+     "name": "accounts delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare accounts delete 3 --dry-run",
+      "townsquare accounts delete 3 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
+   }
+  },
+  "/accounts/{id}/login": {
+   "post": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Restart an extra account's login",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Account"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. For when the QR code expired.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "phone": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "restart_an_extra_accounts_login",
+    "x-cli": {
+     "name": "accounts login",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare accounts login 3"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
+  "/accounts/{id}/qr.png": {
+   "get": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Login QR code of an extra account",
+    "operationId": "account_qr",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "description": "Admin. Scan it in WhatsApp (Linked devices) or Telegram (Devices → Link Desktop Device).",
+    "responses": {
+     "200": {
+      "description": "image/png"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "x-cli": {
+     "name": "accounts qr",
+     "effects": "read_only",
+     "examples": [
+      "townsquare accounts qr 3 --deliver file:./account-qr.png"
+     ],
+     "output_kind": "opaque",
+     "media_type": "image/png"
+    }
+   }
+  },
+  "/accounts/{id}/password": {
+   "post": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Send an extra Telegram account's two-step password",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Account"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "password": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "password"
+        ]
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "send_an_extra_telegram_accounts_two-step_password",
+    "x-cli": {
+     "name": "accounts password",
+     "effects": "non_idempotent",
+     "examples": [
+      "printf '%s' \"$TG_PASSWORD\" | townsquare accounts password 4 --password @-"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
+  "/accounts/{id}/refresh": {
+   "post": {
+    "tags": [
+     "Accounts"
+    ],
+    "summary": "Reload an extra account's chats",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Account"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     },
+     "502": {
+      "$ref": "#/components/responses/E502"
+     },
+     "503": {
+      "$ref": "#/components/responses/E503"
+     }
+    },
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "reload_an_extra_accounts_chats",
+    "x-cli": {
+     "name": "accounts refresh",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare accounts refresh 3"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
   "/sessions": {
    "get": {
     "tags": [
@@ -4860,7 +5378,7 @@
      "jid": {
       "type": "string",
       "example": "120363012345678901@g.us",
-      "description": "WhatsApp JID; Telegram: tg:self, tg:chat:<id>, tg:ch:<id>:<hash>, tg:ch:<id>:<hash>:t<topic>, tg:story:self, tg:story:ch:<id>:<hash>; bot: tgbot:<chat id>"
+      "description": "WhatsApp JID; Telegram: tg:self, tg:chat:<id>, tg:ch:<id>:<hash>, tg:ch:<id>:<hash>:t<topic>, tg:story:self, tg:story:ch:<id>:<hash>; bot: tgbot:<chat id>. Chats of an extra account carry its number: wa@3:<jid>, tg@4:<rest>"
      },
      "platform": {
       "type": "string",
@@ -4913,6 +5431,85 @@
      },
      "gone": {
       "type": "boolean"
+     },
+     "account": {
+      "type": "integer",
+      "description": "0 = the first account of its app; otherwise the extra account that posts here (GET /accounts)"
+     }
+    }
+   },
+   "Account": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer",
+      "description": "0 for the first WhatsApp and Telegram account; extra accounts have their own number"
+     },
+     "platform": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "telegram"
+      ]
+     },
+     "label": {
+      "type": "string"
+     },
+     "default": {
+      "type": "boolean"
+     },
+     "linked": {
+      "type": "boolean"
+     },
+     "connected": {
+      "type": "boolean"
+     },
+     "who": {
+      "type": "string",
+      "description": "Phone number or @username"
+     },
+     "chats": {
+      "type": "integer"
+     },
+     "allowlisted": {
+      "type": "integer"
+     },
+     "last_sync": {
+      "type": "integer"
+     },
+     "connected_since": {
+      "type": "integer"
+     },
+     "link": {
+      "type": "object",
+      "properties": {
+       "state": {
+        "type": "string"
+       },
+       "pair_code": {
+        "type": "string"
+       },
+       "expires": {
+        "type": "integer"
+       },
+       "message": {
+        "type": "string"
+       },
+       "version": {
+        "type": "integer"
+       }
+      },
+      "description": "WhatsApp linking in progress"
+     },
+     "status": {
+      "type": "string",
+      "description": "Telegram: logged_out, qr, password, ready, error"
+     },
+     "error": {
+      "type": "string"
+     },
+     "qr_version": {
+      "type": "integer"
      }
     }
    },

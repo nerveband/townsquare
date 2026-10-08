@@ -45,11 +45,17 @@ func checkContract(t *testing.T, seed bool) {
 		t.Fatal(err)
 	}
 	t.Cleanup(cli.Disconnect)
-	s := &Server{DB: db, WA: cli, DataDir: dir, Demo: true}
+	s := &Server{DB: db, WA: cli, DataDir: waDir, Demo: true}
 	if seed {
 		if err := s.SeedDemo(ctx); err != nil {
 			t.Fatal(err)
 		}
+		// An extra (not yet linked) WhatsApp account, so /accounts/{id} has something to show.
+		if _, err := db.AddAccount(ctx, "whatsapp", "Second phone"); err != nil {
+			t.Fatal(err)
+		}
+		s.StartAccounts(ctx, "ERROR")
+		t.Cleanup(s.CloseAccounts)
 	}
 	// A document needs no ffmpeg, so this works on every CI machine.
 	doc, err := s.ingestMedia(ctx, "agenda.pdf", "", "document", strings.NewReader(demoPDF))
@@ -71,7 +77,7 @@ func checkContract(t *testing.T, seed bool) {
 	}
 	ids := map[string]string{"{id}": "2", "{jid}": "120363000000000102@g.us"}
 	query := map[string]string{"/sends/deliveries": "schedule_id=2&occ=x", "/sends": "from=2026-01-01&to=2030-01-01"}
-	skip := map[string]string{"/media/{id}/file": "binary", "/media/{id}/preview": "binary", "/telegram/qr.png": "binary",
+	skip := map[string]string{"/accounts/{id}/qr.png": "binary", "/media/{id}/file": "binary", "/media/{id}/preview": "binary", "/telegram/qr.png": "binary",
 		"/whatsapp/qr.png": "binary", "/stats/summary.txt": "text", "/stats/export.csv": "text"}
 	m := s.v1Mux()
 	checked := 0

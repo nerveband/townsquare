@@ -51,6 +51,7 @@ type Server struct {
 	reload    bool            // restart soon to pick up a new shared Telegram app id
 	msgOps    msgOps          // platform calls for unsend/edit (tests replace it)
 	conn      connInfo        // when each account last connected and synced
+	accts     accountSet      // extra WhatsApp and Telegram accounts (most people have none)
 	baseCtx   context.Context // lives as long as the server
 }
 
@@ -131,6 +132,15 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/telegram/app", s.telegramApp)
 	m.HandleFunc("DELETE /api/telegram/app", s.telegramAppReset)
 	m.HandleFunc("GET /api/changelog", s.changelogHandler)
+	m.HandleFunc("GET /api/accounts", s.listAccounts)
+	m.HandleFunc("POST /api/accounts", s.addAccount)
+	m.HandleFunc("GET /api/accounts/{id}", s.getAccount)
+	m.HandleFunc("PATCH /api/accounts/{id}", s.renameAccount)
+	m.HandleFunc("DELETE /api/accounts/{id}", s.removeAccount)
+	m.HandleFunc("POST /api/accounts/{id}/login", s.accountLogin)
+	m.HandleFunc("GET /api/accounts/{id}/qr.png", s.accountQR)
+	m.HandleFunc("POST /api/accounts/{id}/password", s.accountPassword)
+	m.HandleFunc("POST /api/accounts/{id}/refresh", s.refreshAccount)
 	m.HandleFunc("GET /api/config", s.serverConfig)
 	m.HandleFunc("PATCH /api/config", s.patchServerConfig)
 	m.HandleFunc("POST /api/restart", s.restartServer)

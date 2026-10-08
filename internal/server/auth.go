@@ -72,7 +72,8 @@ func needsAdmin(r *http.Request) bool {
 	// Updating, stopping, start at login, and linking or unlinking WhatsApp are admin-only.
 	if p == "/api/v1/update/install" || p == "/api/v1/quit" || p == "/api/v1/restart" || p == "/api/v1/login-link" ||
 		(p == "/api/v1/config" && r.Method != http.MethodGet) || (p == "/api/v1/autostart" && r.Method != http.MethodGet) ||
-		strings.HasPrefix(p, "/api/v1/whatsapp/") {
+		strings.HasPrefix(p, "/api/v1/whatsapp/") ||
+		(strings.HasPrefix(p, "/api/v1/accounts") && (r.Method != http.MethodGet || strings.HasSuffix(p, "/qr.png"))) {
 		return true
 	}
 	// Logging an account in or out, or seeing its login QR, is admin-only.

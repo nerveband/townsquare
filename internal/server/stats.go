@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"github.com/nerveband/townsquare/internal/acct"
 	"log"
 	"math"
 	"net/http"
@@ -186,6 +187,13 @@ func (s *Server) dailyStats(ctx context.Context, day string) {
 			log.Println("stats: targets:", err)
 		}
 	}
+	for _, x := range s.extras() {
+		if x.connectedNow() {
+			if err := s.syncAccount(ctx, x); err != nil {
+				log.Printf("stats: account %d chats: %v", x.ID, err)
+			}
+		}
+	}
 	members := map[string]int{}
 	for _, t := range s.DB.Targets(ctx) {
 		if t.Members > 0 && !t.Gone {
@@ -217,10 +225,11 @@ func (s *Server) pollStats(ctx context.Context, now time.Time) {
 }
 
 func (s *Server) pollWAChannel(ctx context.Context, chat string, ps []store.PollTarget) error {
-	if !s.isConnected() {
+	cli, ok := s.waFor(chat)
+	if !ok {
 		return nil
 	}
-	j, err := types.ParseJID(chat)
+	j, err := types.ParseJID(acct.Raw(chat))
 	if err != nil {
 		return err
 	}
@@ -232,9 +241,9 @@ func (s *Server) pollWAChannel(ctx context.Context, chat string, ps []store.Poll
 	}
 	// The plain message list carries view and reaction counts and answers
 	// reliably; the "updates" query often times out, so it is only a fallback.
-	upd, err := s.WA.GetNewsletterMessages(ctx, j, &whatsmeow.GetNewsletterMessagesParams{Count: 100})
+	upd, err := cli.GetNewsletterMessages(ctx, j, &whatsmeow.GetNewsletterMessagesParams{Count: 100})
 	if err != nil {
-		upd, err = s.WA.GetNewsletterMessageUpdates(ctx, j, &whatsmeow.GetNewsletterUpdatesParams{Count: 100, Since: since.Add(-time.Minute)})
+		upd, err = cli.GetNewsletterMessageUpdates(ctx, j, &whatsmeow.GetNewsletterUpdatesParams{Count: 100, Since: since.Add(-time.Minute)})
 	}
 	if err != nil {
 		return err
@@ -271,10 +280,11 @@ func (s *Server) pollWAChannel(ctx context.Context, chat string, ps []store.Poll
 }
 
 func (s *Server) pollTelegram(ctx context.Context, chat string, ps []store.PollTarget) error {
-	if !s.TG.Ready() {
+	client := s.tgFor(chat)
+	if !client.Ready() {
 		return nil
 	}
-	api := s.TG.API()
+	api := client.API()
 	addr, err := tg.Parse(chat)
 	if err != nil {
 		return err
@@ -375,9 +385,6 @@ func addReactions(into map[string]int, rs []tgapi.ReactionCount) {
 // telegramInsights saves Telegram's own channel summary for channels we post to.
 // Telegram only offers it for larger channels; others are skipped quietly.
 func (s *Server) telegramInsights(ctx context.Context) {
-	if !s.TG.Ready() {
-		return
-	}
 	rows, err := s.DB.QueryContext(ctx, `SELECT DISTINCT s.chat FROM stat_sends s JOIN targets t ON t.jid=s.chat
 		WHERE s.platform='telegram' AND t.kind='channel' AND s.sent_at > ?`, time.Now().AddDate(0, 0, -90).Unix())
 	if err != nil {
@@ -399,7 +406,11 @@ func (s *Server) telegramInsights(ctx context.Context) {
 		if !ok {
 			continue
 		}
-		st, err := s.TG.API().StatsGetBroadcastStats(ctx, &tgapi.StatsGetBroadcastStatsRequest{Channel: &tgapi.InputChannel{ChannelID: pc.ChannelID, AccessHash: pc.AccessHash}})
+		client := s.tgFor(chat)
+		if !client.Ready() {
+			continue
+		}
+		st, err := client.API().StatsGetBroadcastStats(ctx, &tgapi.StatsGetBroadcastStatsRequest{Channel: &tgapi.InputChannel{ChannelID: pc.ChannelID, AccessHash: pc.AccessHash}})
 		if err != nil {
 			continue
 		}

@@ -1,5 +1,5 @@
 <script>
-  import { app, api, act, loadTargets, avatar, KIND_LABEL, toast, target } from './state.svelte.js'
+  import { app, api, act, loadTargets, avatar, KIND_LABEL, toast, target, accountLabel } from './state.svelte.js'
   import { tzShort } from './time.js'
   import TargetPicker from './TargetPicker.svelte'
   import Platform from './Platform.svelte'
@@ -152,6 +152,36 @@
   async function setAutoUpd(on) { await act(api('PUT', '/api/settings', { auto_update: on ? '1' : '0' })); loadUpd() }
   async function setLogin(on) { try { auto = await api('PUT', '/api/autostart', { enabled: on }); toast(on ? 'Townsquare will start when you log in' : 'Townsquare won’t start at login') } catch (e) { toast(e.message) } }
   async function quitApp() { try { await api('POST', '/api/quit'); document.body.innerHTML = '<p style="font:16px system-ui;padding:40px">Townsquare stopped. Open the app again to restart it.</p>' } catch (e) { toast(e.message) } }
+
+  // More accounts (optional): a second WhatsApp number or Telegram account.
+  let accts = $state([])
+  let adding = $state('') // '', 'whatsapp', 'telegram'
+  let newLabel = $state('')
+  let newPhone = $state('')
+  let acctBusy = $state(false)
+  let acctPw = $state('')
+  let removing = $state(0)
+  let acctTimer
+  const extras = $derived(accts.filter((a) => a.id > 0))
+  const linking = $derived(extras.find((a) => !a.linked))
+  async function loadAccts() {
+    try { accts = await api('GET', '/api/accounts'); app.accounts = accts } catch { accts = [] }
+    clearTimeout(acctTimer)
+    if (tab === 'accounts' && extras.some((a) => !a.linked || !a.connected)) acctTimer = setTimeout(loadAccts, 2000)
+  }
+  $effect(() => { if (tab === 'accounts') loadAccts(); return () => clearTimeout(acctTimer) })
+  async function addAcct() {
+    acctBusy = true
+    try { await api('POST', '/api/accounts', { platform: adding, label: newLabel.trim(), phone: newPhone }); adding = ''; newLabel = ''; newPhone = ''; await loadAccts() }
+    catch (e) { toast(e.message) } finally { acctBusy = false }
+  }
+  async function acctAction(a, path, body) {
+    acctBusy = true
+    try { await api('POST', `/api/accounts/${a.id}/${path}`, body || {}); await loadAccts(); if (path === 'refresh') { await loadTargets(); toast(`Loaded ${a.label}'s chats`) } }
+    catch (e) { toast(e.message) } finally { acctBusy = false }
+  }
+  async function renameAcct(a, label) { if (!label.trim() || label === a.label) return; try { await api('PATCH', `/api/accounts/${a.id}`, { label }); await loadAccts(); await loadTargets() } catch (e) { toast(e.message) } }
+  async function removeAcct(a) { removing = 0; try { await api('DELETE', `/api/accounts/${a.id}`); toast(`Removed ${a.label}`); await loadAccts(); await loadTargets() } catch (e) { toast(e.message) } }
 
   // Telegram app id
   let tgApp = $state({ api_id: '', api_hash: '' })
@@ -319,7 +349,7 @@
           <div class="tr" class:off={!t.can_send}>
             <button class="star" class:on={t.starred} title="Star (shows first in pickers)" onclick={() => patchTarget(t, { starred: !t.starred })}>★</button>
             <span class="av" style="background:{a.bg}">{a.ini}</span>
-            <span class="nm">{#if t.platform === 'telegram'}<Platform platform="telegram" /> {/if}{t.name}{#if t.parent && t.parent !== t.name}<i> · {t.parent}</i>{/if}</span>
+            <span class="nm">{#if t.platform === 'telegram'}<Platform platform="telegram" /> {/if}{t.name}{#if t.parent && t.parent !== t.name}<i> · {t.parent}</i>{/if}{#if t.account}<b class="acc">{accountLabel(t.jid)}</b>{/if}</span>
             <span class="k">{KIND_LABEL[t.kind] || t.kind}{t.members ? ' · ' + t.members : ''}{t.can_send ? '' : ' · admins only'}</span>
             <select class="inp sm" value={t.client_id ?? ''} onchange={(e) => patchTarget(t, e.target.value ? { client_id: +e.target.value } : { no_client: true })} aria-label="Client">
               <option value="">No client</option>{#each app.clients as c}<option value={c.id}>{c.name}</option>{/each}
@@ -474,6 +504,60 @@
         <p class="muted">Optional: post as a bot instead of yourself. Create one with @BotFather in Telegram and paste its token.</p>
         <div class="row"><input class="inp mono" type="password" bind:value={botTok} placeholder="123456:ABC..." style="max-width:320px" aria-label="Bot token" /><button class="btn" onclick={saveBot} disabled={!botTok.trim()}>Save</button></div>
       {/if}
+      {#if !app.demo && (extras.length || wa?.linked || tg?.status === 'ready')}
+        <h3>{extras.length ? 'More accounts' : 'Another account?'}</h3>
+        {#if !extras.length}<p class="muted">Most people use one WhatsApp and one Telegram account. Add another to post from a second number too, for example a client's own phone. Each chat then posts from the account it belongs to.</p>{/if}
+        {#each extras as a (a.id)}
+          <div class="acard">
+            <div class="ahead">
+              <span class="dot" class:on={a.connected}></span>
+              {#if a.platform === 'telegram'}<Platform platform="telegram" />{:else}<span class="wa">WA</span>{/if}
+              <input class="inp sm lbl" value={a.label} onchange={(e) => renameAcct(a, e.target.value)} aria-label="Account name" />
+              <span class="muted">{a.who || (a.linked ? '' : 'not linked yet')}</span>
+              <span class="sp"></span>
+              {#if removing === a.id}<button class="btn danger sm" onclick={() => removeAcct(a)}>Remove now</button><button class="btn sm" onclick={() => (removing = 0)}>Keep</button>
+              {:else}<button class="btn sm" onclick={() => (removing = a.id)}>Remove</button>{/if}
+            </div>
+            {#if a.linked}
+              <p class="muted meta">{a.connected ? 'Connected' : 'Not connected right now'}{a.last_sync ? ` · chats loaded ${ago(a.last_sync)}: ${a.chats} chats, ${a.allowlisted} allowlisted` : ' · loading chats…'}. New chats start off the allowlist; allow them in Groups &amp; safety, where they show “{a.label}”.</p>
+              <div class="row"><button class="btn sm" onclick={() => acctAction(a, 'refresh')} disabled={acctBusy || !a.connected}>Refresh chats</button></div>
+            {:else if a.platform === 'whatsapp'}
+              {#if a.link?.state === 'code'}
+                <p>On the phone for <b>{a.label}</b>, open <b>WhatsApp → Settings → Linked devices → Link a device</b> and scan this code.</p>
+                <img class="tgqr" src="/api/accounts/{a.id}/qr.png?v={a.link.version}" alt="QR code to link {a.label}" />
+                {#if a.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{a.link.pair_code}</b></p>{/if}
+              {:else if a.link?.state === 'linked'}<p class="st"><span class="dot on"></span>Linked. Loading chats…</p>
+              {:else if a.link?.state === 'waiting'}<p class="muted">Getting a code…</p>
+              {:else}<div class="row"><button class="btn pri sm" onclick={() => acctAction(a, 'login')} disabled={acctBusy}>Show a new code</button>{#if a.link?.message}<span class="err">{a.link.message}</span>{/if}</div>{/if}
+            {:else}
+              {#if a.status === 'qr'}
+                <p>In the Telegram account for <b>{a.label}</b>, open <b>Settings → Devices → Link Desktop Device</b> and scan this code.</p>
+                <img class="tgqr" src="/api/accounts/{a.id}/qr.png?v={a.qr_version}" alt="QR code to log in {a.label}" />
+              {:else if a.status === 'password'}
+                <p>This account has two-step verification. Enter its Telegram password.</p>
+                <div class="row"><input class="inp" type="password" bind:value={acctPw} style="max-width:240px" aria-label="Telegram password" /><button class="btn pri" disabled={!acctPw || acctBusy} onclick={() => acctAction(a, 'password', { password: acctPw }).then(() => (acctPw = ''))}>Log in</button></div>
+              {:else}<div class="row"><button class="btn pri sm" onclick={() => acctAction(a, 'login')} disabled={acctBusy}>Log in with a QR code</button>{#if a.error}<span class="err">{a.error}</span>{/if}</div>{/if}
+            {/if}
+          </div>
+        {/each}
+        {#if adding}
+          <div class="acard">
+            <p><b>Add another {adding === 'telegram' ? 'Telegram account' : 'WhatsApp number'}</b></p>
+            <div class="row">
+              <input class="inp" bind:value={newLabel} placeholder="A short name, like “ISLA phone”" style="max-width:260px" aria-label="Account name" onkeydown={(e) => e.key === 'Enter' && newLabel.trim() && addAcct()} />
+              {#if adding === 'whatsapp'}<input class="inp" bind:value={newPhone} placeholder="Its phone number (optional)" style="max-width:200px" aria-label="Phone number, for a typed code" />{/if}
+              <button class="btn pri" onclick={addAcct} disabled={acctBusy || !newLabel.trim() || !!linking}>{acctBusy ? 'Starting…' : 'Continue'}</button>
+              <button class="btn" onclick={() => (adding = '')}>Cancel</button>
+            </div>
+            {#if linking}<p class="muted">Finish linking {linking.label} first.</p>{/if}
+          </div>
+        {:else}
+          <div class="row">
+            {#if wa?.linked}<button class="lnk" onclick={() => (adding = 'whatsapp')}>+ Add another WhatsApp number</button>{/if}
+            {#if tg?.status === 'ready'}<button class="lnk" onclick={() => (adding = 'telegram')}>+ Add another Telegram account</button>{/if}
+          </div>
+        {/if}
+      {/if}
     {:else if tab === 'api'}
       <h3>Signed-in devices</h3>
       <p class="muted">Browsers that can use this web app. New devices sign in with a link sent to your WhatsApp, or one you make here.</p>
@@ -611,6 +695,13 @@
   .accts .st b { min-width: 100px }
   .accts .lnk { align-self: flex-start; margin-top: 2px }
   .meta { font-size: 12.5px; margin: 2px 0 8px }
+  .acard { border: 1px solid var(--line2); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px }
+  .acard p { margin: 0 }
+  .ahead { display: flex; align-items: center; gap: 8px }
+  .ahead .lbl { max-width: 220px; font-weight: 600 }
+  .ahead .sp { flex: 1 }
+  .wa { font: 600 9.5px var(--mono); background: #E2F6E9; color: #1E7A3A; border-radius: 4px; padding: 1px 4px }
+  .acc { margin-left: 6px; font: 600 10.5px var(--sans); color: var(--t800); background: var(--sky-soft); border-radius: 5px; padding: 1px 6px }
   .err { color: #9B1C2C; background: #FDE4E7; padding: 6px 10px; border-radius: 8px; margin: 0 }
   .qseg { display: inline-flex; align-items: center; gap: 2px } .qseg .muted { margin-right: 4px; font-size: 12px }
   .qseg button { border: 1px solid var(--line); background: #fff; font-size: 12px; padding: 3px 8px; border-radius: 6px } .qseg button.on { background: var(--t800); border-color: var(--t800); color: #fff } .qt { width: 110px !important } .qz { max-width: 170px }

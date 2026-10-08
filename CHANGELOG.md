@@ -6,8 +6,16 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Added
+- **More than one account, when you need it.** Settings → Accounts → "Add another WhatsApp
+  number" or "Add another Telegram account" links a second (or third) account with its own QR
+  code. Its chats show a small account label wherever you pick chats, and each chat posts from
+  the account it belongs to. If you only use one account, nothing changes. Extra Telegram
+  accounts send live (Telegram's own queue is for the first account).
+
 ### Fixed
 - CLI: `--fields` and `--transform` now apply to `--dry-run` output too.
+- Clients with one chat say "1 chat".
 
 ## [v0.8.0] - 2026-10-08
 
@@ -37,6 +45,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 - The Stats page now scrolls all the way down.
 
 ### API changes
+- New `/api/v1/accounts` (list, add, get, rename, remove, login, qr.png, password, refresh).
+  Targets have `account`; chats of extra accounts have ids `wa@<n>:…` and `tg@<n>:…`.
 - New `POST /api/v1/sends/unsend`, `POST /sends/edit`, `GET /sends/pending`; setting
   `send_delay`. Sends can have delivery `unsent` and an `unsent` count.
 - `GET /stats/summary` days include `items` (posts that went out that day).

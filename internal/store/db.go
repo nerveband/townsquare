@@ -80,11 +80,11 @@ func Open(dataDir string) (*DB, error) {
 		return nil, err
 	}
 	sdb.SetMaxOpenConns(1)
-	if _, err := sdb.Exec(schema + apiKeySchema + sessionSchema + statSchema + idempotencySchema + sentSchema); err != nil {
+	if _, err := sdb.Exec(schema + apiKeySchema + sessionSchema + statSchema + idempotencySchema + sentSchema + accountSchema); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	db := &DB{DB: sdb}
-	addColumns(sdb, "targets", map[string]string{"platform": "TEXT NOT NULL DEFAULT 'whatsapp'"})
+	addColumns(sdb, "targets", map[string]string{"platform": "TEXT NOT NULL DEFAULT 'whatsapp'", "account": "INTEGER NOT NULL DEFAULT 0"})
 	addColumns(sdb, "clients", map[string]string{
 		"quiet_start": "TEXT NOT NULL DEFAULT ''", "quiet_end": "TEXT NOT NULL DEFAULT ''", "timezone": "TEXT NOT NULL DEFAULT ''"})
 	if err := migrateIDs(sdb); err != nil {

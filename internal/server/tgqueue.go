@@ -75,7 +75,8 @@ func (s *Server) reconcileTelegramQueue(ctx context.Context) {
 		}
 		for _, o := range store.Expand(posts, now.Add(2*time.Minute), now.Add(time.Duration(hours)*time.Hour)) {
 			for _, jid := range o.Targets {
-				if !tg.IsTelegram(jid) || strings.HasPrefix(jid, "tg:story:") || s.DB.Delivered(ctx, o.ScheduleID, o.Occ, jid) {
+				// Only the first Telegram account uses Telegram's queue; extra accounts send live.
+				if !strings.HasPrefix(jid, "tg:") || strings.HasPrefix(jid, "tg:story:") || s.DB.Delivered(ctx, o.ScheduleID, o.Occ, jid) {
 					continue
 				}
 				t, ok := targets[jid]

@@ -99,14 +99,15 @@ func (s *Server) syncTelegram(ctx context.Context) error {
 
 // deliverTelegram sends one occurrence to one Telegram chat.
 func (s *Server) deliverTelegram(ctx context.Context, o store.Occurrence, jid string, msgs *[]store.StatMsg) (string, error) {
-	if !s.TG.Ready() {
-		return "", errors.New("Telegram is not logged in")
+	client := s.tgFor(jid)
+	if !client.Ready() {
+		return "", errors.New("the Telegram account for this chat is not logged in")
 	}
 	media, err := s.telegramMedia(ctx, o)
 	if err != nil {
 		return "", err
 	}
-	ids, err := s.TG.SendIDs(ctx, jid, o.Caption, media, tg.Options{})
+	ids, err := client.SendIDs(ctx, jid, o.Caption, media, tg.Options{})
 	if msgs != nil {
 		kind := "text"
 		if len(media) > 0 {

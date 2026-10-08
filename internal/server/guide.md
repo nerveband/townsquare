@@ -209,3 +209,13 @@ fails, or doesn't start properly twice, it is skipped and the current version ke
   WhatsApp: text messages only, 15 minutes. Telegram: text and captions, no limit. The post
   itself isn't changed; edit it separately for future sends.
 - Both are recorded in history. Use them only when asked.
+
+## More than one account (optional)
+
+Most installs have one WhatsApp and one Telegram account; nothing here changes for them.
+`POST /accounts {"platform": "whatsapp", "label": "ISLA phone"}` (admin) adds another
+WhatsApp number or Telegram account and starts its login (`GET /accounts/{id}/qr.png`).
+Its chats then appear in `GET /targets` with `"account": <id>` and ids like
+`wa@3:120363…@g.us` or `tg@4:ch:…`. A post goes out from whichever account each of its chats
+belongs to, so pick the chat from the right account. New chats start off the allowlist.
+`GET /accounts` lists every account (the first ones have id 0).

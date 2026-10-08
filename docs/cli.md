@@ -68,6 +68,95 @@
 
 Effects: `read_only` changes nothing; `idempotent` is safe to repeat; `non_idempotent` creates or sends something, so pass `--idempotency-key` to retry safely. Commands marked **needs --yes** refuse without a terminal unless `--yes` is given; preview them with `--dry-run`.
 
+### accounts
+
+.
+
+#### `townsquare accounts create`
+
+Add another account. `POST /api/v1/accounts` · non_idempotent
+
+- `--label` string (required) 
+- `--phone` string WhatsApp: optional, for a typed pairing code
+- `--platform` string (required) One of: whatsapp, telegram. 
+
+```sh
+townsquare accounts create --platform whatsapp --label 'ISLA phone' --dry-run
+townsquare accounts create --platform telegram --label 'Center Telegram'
+```
+
+#### `townsquare accounts delete ID`
+
+Remove an extra account. `DELETE /api/v1/accounts/{id}` · idempotent · **needs --yes**
+
+```sh
+townsquare accounts delete 3 --dry-run
+townsquare accounts delete 3 --yes
+```
+
+#### `townsquare accounts get ID`
+
+Get an extra account. `GET /api/v1/accounts/{id}` · read_only
+
+```sh
+townsquare accounts get 3
+```
+
+#### `townsquare accounts list`
+
+List linked accounts. `GET /api/v1/accounts` · read_only
+
+```sh
+townsquare accounts list
+townsquare accounts list --fields id,platform,label,who,connected
+```
+
+#### `townsquare accounts login ID`
+
+Restart an extra account's login. `POST /api/v1/accounts/{id}/login` · idempotent
+
+- `--phone` string 
+
+```sh
+townsquare accounts login 3
+```
+
+#### `townsquare accounts password ID`
+
+Send an extra Telegram account's two-step password. `POST /api/v1/accounts/{id}/password` · non_idempotent
+
+- `--password` string (required) Secret: pass `@file` or `@-`. 
+
+```sh
+printf '%s' "$TG_PASSWORD" | townsquare accounts password 4 --password @-
+```
+
+#### `townsquare accounts qr ID`
+
+Login QR code of an extra account. `GET /api/v1/accounts/{id}/qr.png` · read_only · writes image/png (`--deliver`)
+
+```sh
+townsquare accounts qr 3 --deliver file:./account-qr.png
+```
+
+#### `townsquare accounts refresh ID`
+
+Reload an extra account's chats. `POST /api/v1/accounts/{id}/refresh` · idempotent
+
+```sh
+townsquare accounts refresh 3
+```
+
+#### `townsquare accounts update ID`
+
+Rename an extra account. `PATCH /api/v1/accounts/{id}` · idempotent
+
+- `--label` string (required) 
+
+```sh
+townsquare accounts update 3 --label 'ISLA office phone'
+```
+
 ### changelog
 
 Release notes.

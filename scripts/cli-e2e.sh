@@ -112,6 +112,12 @@ expect 0 "resume" -- "$T" posts resume 1
 expect 0 "bulk" -- "$T" posts bulk --body '{"ids":[1,99999],"action":"pause"}' --yes; has "$OUT" '"not_found"' "per-item bulk results"
 expect 0 "resume again" -- "$T" posts resume 1
 
+# Accounts: the first ones always exist; demo mode can't add more.
+expect 0 "accounts" -- "$T" accounts list --transform 'items.#'
+expect 5 "no extra accounts in demo" -- "$T" accounts create --platform whatsapp --label "Second phone"
+expect 2 "account label required" -- "$T" accounts create --platform whatsapp
+expect 4 "no such account" -- "$T" accounts get 99
+
 # Taking posts back and the undo-send pause.
 expect 0 "pending" -- "$T" sends pending; has "$OUT" '"delay_seconds"' "pending sends"
 expect 6 "unsend needs --yes" -- "$T" sends unsend --post-id 2 --schedule-id 2 --occ 2026-10-07T18:30

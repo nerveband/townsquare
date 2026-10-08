@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nerveband/townsquare/internal/acct"
 	"net/http"
 	"strconv"
 	"strings"
@@ -37,21 +38,22 @@ type liveOps struct{ s *Server }
 func (o liveOps) revoke(ctx context.Context, m store.SentMsg) error {
 	switch m.Platform {
 	case "whatsapp":
-		if !o.s.isConnected() {
-			return errors.New("WhatsApp isn't connected")
+		cli, ok := o.s.waFor(m.JID)
+		if !ok {
+			return errors.New("the WhatsApp account for this chat isn't connected")
 		}
-		chat, err := types.ParseJID(m.JID)
+		chat, err := types.ParseJID(acct.Raw(m.JID))
 		if err != nil {
 			return err
 		}
-		_, err = o.s.WA.SendMessage(ctx, chat, o.s.WA.BuildRevoke(chat, types.EmptyJID, types.MessageID(m.MsgID)))
+		_, err = cli.SendMessage(ctx, chat, cli.BuildRevoke(chat, types.EmptyJID, types.MessageID(m.MsgID)))
 		return err
 	case "telegram":
 		id, err := strconv.Atoi(m.MsgID)
 		if err != nil {
 			return err
 		}
-		return o.s.TG.Delete(ctx, m.JID, []int{id})
+		return o.s.tgFor(m.JID).Delete(ctx, m.JID, []int{id})
 	case "telegram_bot":
 		if o.s.Bot == nil {
 			return errors.New("the Telegram bot isn't set up")
@@ -68,14 +70,15 @@ func (o liveOps) revoke(ctx context.Context, m store.SentMsg) error {
 func (o liveOps) edit(ctx context.Context, m store.SentMsg, text string) error {
 	switch m.Platform {
 	case "whatsapp":
-		if !o.s.isConnected() {
-			return errors.New("WhatsApp isn't connected")
+		cli, ok := o.s.waFor(m.JID)
+		if !ok {
+			return errors.New("the WhatsApp account for this chat isn't connected")
 		}
-		chat, err := types.ParseJID(m.JID)
+		chat, err := types.ParseJID(acct.Raw(m.JID))
 		if err != nil {
 			return err
 		}
-		_, err = o.s.WA.SendMessage(ctx, chat, o.s.WA.BuildEdit(chat, types.MessageID(m.MsgID),
+		_, err = cli.SendMessage(ctx, chat, cli.BuildEdit(chat, types.MessageID(m.MsgID),
 			&waE2E.Message{ExtendedTextMessage: &waE2E.ExtendedTextMessage{Text: proto.String(text)}}))
 		return err
 	case "telegram":
@@ -83,7 +86,7 @@ func (o liveOps) edit(ctx context.Context, m store.SentMsg, text string) error {
 		if err != nil {
 			return err
 		}
-		return o.s.TG.Edit(ctx, m.JID, id, text)
+		return o.s.tgFor(m.JID).Edit(ctx, m.JID, id, text)
 	case "telegram_bot":
 		if o.s.Bot == nil {
 			return errors.New("the Telegram bot isn't set up")
@@ -111,7 +114,7 @@ func deleteWindow(m store.SentMsg) time.Duration {
 		return 0
 	case m.Platform == "telegram_bot":
 		return 48 * time.Hour
-	case m.JID == types.StatusBroadcastJID.String():
+	case acct.Raw(m.JID) == types.StatusBroadcastJID.String():
 		return 24 * time.Hour
 	case wa.IsChannel(m.JID):
 		return 30 * 24 * time.Hour

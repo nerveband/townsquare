@@ -307,6 +307,7 @@ func main() {
 			if err := srv.Connect(ctx); err != nil {
 				fmt.Fprintln(os.Stderr, "whatsapp:", err)
 			}
+			srv.StartAccounts(ctx, *logLevel)
 			go srv.Run(ctx)
 			go srv.RunStats(ctx)
 			if t, err := tg.New(*dataDir); err != nil {
@@ -352,6 +353,7 @@ func main() {
 			// Stop cleanly: listeners, send loops, WhatsApp, then the database.
 			cancelServe()
 			time.Sleep(time.Second)
+			srv.CloseAccounts()
 			waCli.Disconnect()
 			_ = db.Close()
 			if why == "update" || why == "reload" {

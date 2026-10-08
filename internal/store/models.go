@@ -43,6 +43,7 @@ type Target struct {
 	Allowed  bool   `json:"allowed"`
 	Starred  bool   `json:"starred"`
 	Gone     bool   `json:"gone"`
+	Account  int64  `json:"account"` // 0 = the platform's first account (see internal/acct)
 }
 
 type Set struct {
@@ -315,7 +316,7 @@ func (db *DB) Sets(ctx context.Context) []Set {
 
 func (db *DB) Targets(ctx context.Context) []Target {
 	out := []Target{}
-	rows, err := db.QueryContext(ctx, `SELECT jid,platform,kind,name,parent,can_send,members,client_id,allowed,starred,gone FROM targets ORDER BY
+	rows, err := db.QueryContext(ctx, `SELECT jid,platform,kind,name,parent,can_send,members,client_id,allowed,starred,gone,account FROM targets ORDER BY
 		CASE kind WHEN 'self' THEN 0 WHEN 'status' THEN 1 WHEN 'announce' THEN 2 WHEN 'channel' THEN 3 WHEN 'group' THEN 4 ELSE 5 END, name COLLATE NOCASE`)
 	if err != nil {
 		return out
@@ -323,7 +324,7 @@ func (db *DB) Targets(ctx context.Context) []Target {
 	defer rows.Close()
 	for rows.Next() {
 		var t Target
-		_ = rows.Scan(&t.JID, &t.Platform, &t.Kind, &t.Name, &t.Parent, &t.CanSend, &t.Members, &t.ClientID, &t.Allowed, &t.Starred, &t.Gone)
+		_ = rows.Scan(&t.JID, &t.Platform, &t.Kind, &t.Name, &t.Parent, &t.CanSend, &t.Members, &t.ClientID, &t.Allowed, &t.Starred, &t.Gone, &t.Account)
 		out = append(out, t)
 	}
 	return out
@@ -341,7 +342,13 @@ func (db *DB) UpsertTarget(ctx context.Context, platform string, t Target) error
 
 // UpsertTargets refreshes one platform's chats but keeps local fields (client, allowed,
 // starred). Chats of that platform that no longer appear are marked gone.
+// UpsertTargets replaces one account's chats: chats it no longer has are marked gone.
 func (db *DB) UpsertTargets(ctx context.Context, platform string, ts []Target) error {
+	return db.UpsertAccountTargets(ctx, platform, 0, ts)
+}
+
+// UpsertAccountTargets is UpsertTargets for a given account (0 = default).
+func (db *DB) UpsertAccountTargets(ctx context.Context, platform string, account int64, ts []Target) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	tx, err := db.BeginTx(ctx, nil)
@@ -350,13 +357,13 @@ func (db *DB) UpsertTargets(ctx context.Context, platform string, ts []Target) e
 	}
 	defer tx.Rollback()
 	now := time.Now().Unix()
-	if _, err := tx.ExecContext(ctx, `UPDATE targets SET gone=1 WHERE platform=?`, platform); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE targets SET gone=1 WHERE platform=? AND account=?`, platform, account); err != nil {
 		return err
 	}
 	for _, t := range ts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO targets(jid,platform,kind,name,parent,can_send,members,updated_at,gone) VALUES(?,?,?,?,?,?,?,?,0)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO targets(jid,platform,kind,name,parent,can_send,members,updated_at,gone,account) VALUES(?,?,?,?,?,?,?,?,0,?)
 			ON CONFLICT(jid) DO UPDATE SET platform=excluded.platform,kind=excluded.kind,name=excluded.name,parent=excluded.parent,can_send=excluded.can_send,
-			members=excluded.members,updated_at=excluded.updated_at,gone=0`, t.JID, platform, t.Kind, t.Name, t.Parent, t.CanSend, t.Members, now); err != nil {
+			members=excluded.members,updated_at=excluded.updated_at,gone=0,account=excluded.account`, t.JID, platform, t.Kind, t.Name, t.Parent, t.CanSend, t.Members, now, account); err != nil {
 			return err
 		}
 	}

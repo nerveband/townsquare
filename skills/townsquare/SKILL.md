@@ -96,6 +96,10 @@ townsquare sends unsend --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --y
 townsquare sends edit --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --caption @fixed.txt --dry-run
 ```
 
+If there is more than one account (`townsquare accounts list` shows extras), each chat has an
+`account`; chats of extra accounts have ids like `wa@3:…`. Pick chats from the right account:
+that's the one that posts.
+
 ## Errors
 
 Branch on the exit code (or `error.kind` with `-o json`): 2 usage or validation (fix the

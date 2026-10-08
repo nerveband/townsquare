@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nerveband/townsquare/internal/acct"
 	"strconv"
 	"strings"
 
@@ -112,6 +113,7 @@ type Address struct {
 // Parse turns a Townsquare Telegram JID into an address.
 func Parse(jid string) (Address, error) {
 	var a Address
+	jid = acct.Raw(jid) // an extra account's chat: tg@4:ch:… → tg:ch:…
 	if strings.HasPrefix(jid, "tg:story:") {
 		a.Story = true
 		jid = "tg:" + strings.TrimPrefix(jid, "tg:story:")
@@ -154,4 +156,6 @@ func Peer(jid string) (tgapi.InputPeerClass, error) {
 }
 
 // IsTelegram reports whether a JID belongs to Telegram.
-func IsTelegram(jid string) bool { return strings.HasPrefix(jid, "tg:") }
+func IsTelegram(jid string) bool {
+	return strings.HasPrefix(jid, "tg:") || strings.HasPrefix(jid, "tg@")
+}

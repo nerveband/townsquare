@@ -1,8 +1,11 @@
 package server
 
 import (
+	"errors"
+
 	"context"
 	"fmt"
+	"github.com/nerveband/townsquare/internal/acct"
 	"log"
 	"math/rand/v2"
 	"net/http"
@@ -108,8 +111,11 @@ func (s *Server) tick(ctx context.Context) {
 	if len(due) == 0 {
 		return
 	}
-	waOK, tgOK := s.isConnected(), s.TG.Ready()
-	if !waOK && !tgOK && s.Bot == nil {
+	anyReady := s.isConnected() || s.TG.Ready() || s.Bot != nil
+	for _, x := range s.extras() {
+		anyReady = anyReady || x.connectedNow()
+	}
+	if !anyReady {
 		return // retry next tick, until the grace window passes
 	}
 	clients := map[int64]store.Client{}
@@ -144,8 +150,8 @@ func (s *Server) tick(ctx context.Context) {
 				sent++
 				continue
 			}
-			if (tg.IsTelegram(jid) && !tgOK) || (tgbot.IsBot(jid) && s.Bot == nil) || (!tg.IsTelegram(jid) && !tgbot.IsBot(jid) && !waOK) {
-				continue // that platform is offline; retry next tick within the grace window
+			if !s.ready(jid) {
+				continue // that account is offline; retry next tick within the grace window
 			}
 			t, ok := targets[jid]
 			switch {
@@ -239,8 +245,13 @@ func (s *Server) deliver(ctx context.Context, o store.Occurrence, jid string, pr
 	if tg.IsTelegram(jid) {
 		return s.deliverTelegram(ctx, o, jid, msgs)
 	}
+	waCli, _ := s.waFor(jid)
+	if waCli == nil && !tgbot.IsBot(jid) {
+		return "", errors.New("the WhatsApp account for this chat isn't linked")
+	}
+	rawJID := acct.Raw(jid)
 	waSend := func(p *wa.Prepared, text, kind string) (string, error) {
-		r, err := wa.SendPreparedResp(ctx, s.WA, jid, p, text)
+		r, err := wa.SendPreparedResp(ctx, waCli, rawJID, p, text)
 		if err == nil {
 			*msgs = append(*msgs, store.StatMsg{Platform: "whatsapp", ID: r.ID, ServerID: int64(r.ServerID), Kind: kind, Text: text != ""})
 		}
@@ -267,7 +278,7 @@ func (s *Server) deliver(ctx context.Context, o store.Occurrence, jid string, pr
 	channel := wa.IsChannel(jid)
 	var firstID string
 	for i, mid := range o.Media {
-		key := strconv.FormatInt(mid, 10) + strconv.FormatBool(channel)
+		key := strconv.FormatInt(mid, 10) + strconv.FormatBool(channel) + "@" + strconv.FormatInt(acct.Account(jid), 10) // uploads belong to one account
 		p := prepared[key]
 		if p == nil {
 			m, err := s.DB.Media(ctx, mid)
@@ -278,7 +289,7 @@ func (s *Server) deliver(ctx context.Context, o store.Occurrence, jid string, pr
 			if err != nil {
 				return "", err
 			}
-			p, err = wa.Upload(ctx, s.WA, m.Kind, desc, filepath.Base(m.Name), channel)
+			p, err = wa.Upload(ctx, waCli, m.Kind, desc, filepath.Base(m.Name), channel)
 			if err != nil {
 				return "", err
 			}
