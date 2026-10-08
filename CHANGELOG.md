@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.6.2] - 2026-10-08
+
 ### Added
 - **Updates can't cost you a post.** Townsquare installs an update at the first moment with no
   post due within 15 minutes either side and nothing being sent, and shows when that will be.
