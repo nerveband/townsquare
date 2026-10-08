@@ -10,6 +10,7 @@ require (
 	github.com/teambition/rrule-go v1.8.2
 	go.mau.fi/whatsmeow v0.0.0-20261006124319-9399289b022b
 	golang.org/x/image v0.46.0
+	golang.org/x/term v0.46.0
 	google.golang.org/protobuf v1.36.12
 	modernc.org/sqlite v1.60.1
 	tailscale.com v1.104.0
@@ -91,7 +92,6 @@ require (
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/term v0.46.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.50.0 // indirect

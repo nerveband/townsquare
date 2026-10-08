@@ -1,5 +1,6 @@
 {
  "openapi": "3.1.0",
+ "x-generated": "by tools/gen_openapi.py; do not edit by hand (make spec)",
  "info": {
   "title": "Townsquare API",
   "version": "1.0.0",
@@ -106,7 +107,17 @@
      }
     },
     "description": "Connection, safe mode, today's count, time zone, and your key's scope. Call this first.",
-    "operationId": "get_status"
+    "operationId": "get_status",
+    "x-cli": {
+     "name": "status get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare status get",
+      "townsquare status get --fields connected,safe_mode"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/settings": {
@@ -136,7 +147,16 @@
       "$ref": "#/components/responses/E404"
      }
     },
-    "operationId": "get_settings"
+    "operationId": "get_settings",
+    "x-cli": {
+     "name": "settings get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare settings get --fields timezone,quiet_start,quiet_end"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "patch": {
     "tags": [
@@ -174,7 +194,17 @@
       }
      }
     },
-    "operationId": "update_settings"
+    "operationId": "update_settings",
+    "x-cli": {
+     "name": "settings update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare settings update --quiet-start 22:00 --quiet-end 06:30",
+      "townsquare settings update --safe-mode 1"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/targets": {
@@ -230,9 +260,20 @@
       "in": "query",
       "required": false,
       "schema": {
-       "type": "string"
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "self",
+         "status",
+         "announce",
+         "group",
+         "channel",
+         "community"
+        ]
+       }
       },
-      "description": "Comma list: self,status,announce,group,channel,community"
+      "description": "Comma list"
      },
      {
       "name": "client_id",
@@ -269,6 +310,14 @@
       }
      },
      {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      }
+     },
+     {
       "name": "include_gone",
       "in": "query",
       "required": false,
@@ -277,7 +326,18 @@
       }
      }
     ],
-    "operationId": "list_targets"
+    "operationId": "list_targets",
+    "x-cli": {
+     "name": "targets list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare targets list --kind group,announce --allowed true --limit 20",
+      "townsquare targets list --q isla --fields jid,name,allowed"
+     ],
+     "output_kind": "data",
+     "cardinality": "unbounded",
+     "paginated": true
+    }
    }
   },
   "/targets/refresh": {
@@ -307,7 +367,16 @@
       "$ref": "#/components/responses/E503"
      }
     },
-    "operationId": "refresh_targets_from_whatsapp"
+    "operationId": "refresh_targets_from_whatsapp",
+    "x-cli": {
+     "name": "targets refresh",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare targets refresh --count"
+     ],
+     "output_kind": "data",
+     "cardinality": "unbounded"
+    }
    }
   },
   "/targets/{jid}": {
@@ -347,7 +416,16 @@
       }
      }
     ],
-    "operationId": "get_target"
+    "operationId": "get_target",
+    "x-cli": {
+     "name": "targets get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare targets get 120363000000000102@g.us"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "patch": {
     "tags": [
@@ -399,7 +477,17 @@
       }
      }
     ],
-    "operationId": "update_target"
+    "operationId": "update_target",
+    "x-cli": {
+     "name": "targets update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare targets update 120363000000000102@g.us --client-id 2",
+      "townsquare targets update 120363000000000102@g.us --allowed true --dry-run"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/tags": {
@@ -432,7 +520,16 @@
       "$ref": "#/components/responses/E404"
      }
     },
-    "operationId": "list_tags"
+    "operationId": "list_tags",
+    "x-cli": {
+     "name": "tags list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare tags list -o text"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    },
    "post": {
     "tags": [
@@ -470,7 +567,16 @@
       }
      }
     },
-    "operationId": "create_tag"
+    "operationId": "create_tag",
+    "x-cli": {
+     "name": "tags create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare tags create --name Ramadan --color '#E0475B'"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/tags/{id}": {
@@ -520,7 +626,16 @@
       }
      }
     ],
-    "operationId": "update_tag"
+    "operationId": "update_tag",
+    "x-cli": {
+     "name": "tags update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare tags update 3 --name Events"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "delete": {
     "tags": [
@@ -558,7 +673,18 @@
       }
      }
     ],
-    "operationId": "delete_tag"
+    "operationId": "delete_tag",
+    "x-cli": {
+     "name": "tags delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare tags delete 3 --dry-run",
+      "townsquare tags delete 3 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/clients": {
@@ -591,7 +717,16 @@
       "$ref": "#/components/responses/E404"
      }
     },
-    "operationId": "list_clients"
+    "operationId": "list_clients",
+    "x-cli": {
+     "name": "clients list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare clients list --fields id,name,quiet_start,quiet_end"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    },
    "post": {
     "tags": [
@@ -629,7 +764,16 @@
       }
      }
     },
-    "operationId": "create_client"
+    "operationId": "create_client",
+    "x-cli": {
+     "name": "clients create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare clients create --name 'Riverside Center' --color '#2DB34E'"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/clients/{id}": {
@@ -683,7 +827,16 @@
       }
      }
     ],
-    "operationId": "update_client"
+    "operationId": "update_client",
+    "x-cli": {
+     "name": "clients update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare clients update 2 --quiet-start 22:00 --quiet-end 06:00 --timezone America/New_York"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "delete": {
     "tags": [
@@ -721,7 +874,17 @@
       }
      }
     ],
-    "operationId": "delete_client"
+    "operationId": "delete_client",
+    "x-cli": {
+     "name": "clients delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare clients delete 2 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/sets": {
@@ -754,7 +917,16 @@
       "$ref": "#/components/responses/E404"
      }
     },
-    "operationId": "list_group_sets"
+    "operationId": "list_group_sets",
+    "x-cli": {
+     "name": "sets list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare sets list"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    },
    "post": {
     "tags": [
@@ -792,7 +964,16 @@
       }
      }
     },
-    "operationId": "create_group_set"
+    "operationId": "create_group_set",
+    "x-cli": {
+     "name": "sets create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare sets create --name 'All youth groups' --jids 120363000000000103@g.us,120363000000000104@g.us"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/sets/{id}": {
@@ -842,7 +1023,16 @@
       }
      }
     ],
-    "operationId": "update_group_set"
+    "operationId": "update_group_set",
+    "x-cli": {
+     "name": "sets update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare sets update 4 --name 'Youth and volunteers'"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "delete": {
     "tags": [
@@ -880,7 +1070,17 @@
       }
      }
     ],
-    "operationId": "delete_group_set"
+    "operationId": "delete_group_set",
+    "x-cli": {
+     "name": "sets delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare sets delete 4 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/media": {
@@ -949,6 +1149,19 @@
      "422": {
       "$ref": "#/components/responses/E422"
      }
+    },
+    "x-cli": {
+     "name": "media upload",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare media upload --file ./flyer.jpg --kind image",
+      "townsquare media upload --source-url https://example.org/flyer.jpg --kind image"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "flags": {
+      "url": "--source-url"
+     }
     }
    }
   },
@@ -989,7 +1202,16 @@
       }
      }
     ],
-    "operationId": "get_media"
+    "operationId": "get_media",
+    "x-cli": {
+     "name": "media get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare media get 12"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/media/{id}/file": {
@@ -1016,6 +1238,15 @@
      "404": {
       "$ref": "#/components/responses/E404"
      }
+    },
+    "x-cli": {
+     "name": "media download",
+     "effects": "read_only",
+     "examples": [
+      "townsquare media download 12 --deliver file:./flyer.jpg"
+     ],
+     "output_kind": "opaque",
+     "media_type": "application/octet-stream"
     }
    }
   },
@@ -1043,6 +1274,15 @@
      "404": {
       "$ref": "#/components/responses/E404"
      }
+    },
+    "x-cli": {
+     "name": "media preview",
+     "effects": "read_only",
+     "examples": [
+      "townsquare media preview 12 --deliver file:./preview.jpg"
+     ],
+     "output_kind": "opaque",
+     "media_type": "image/jpeg"
     }
    }
   },
@@ -1082,7 +1322,16 @@
       "in": "query",
       "required": false,
       "schema": {
-       "type": "string"
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "draft",
+         "scheduled",
+         "paused",
+         "archived"
+        ]
+       }
       },
       "description": "Comma list"
      },
@@ -1119,9 +1368,38 @@
        "type": "string"
       },
       "description": "Title or caption contains"
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "Page size (all when left out)"
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "Skip this many; the full count is in X-Total-Count"
      }
     ],
-    "operationId": "list_posts"
+    "operationId": "list_posts",
+    "x-cli": {
+     "name": "posts list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare posts list --status scheduled --limit 10 --fields id,title,next_at",
+      "townsquare posts list --q 'bake sale' --id-only"
+     ],
+     "output_kind": "data",
+     "cardinality": "unbounded",
+     "paginated": true
+    }
    },
    "post": {
     "tags": [
@@ -1160,7 +1438,17 @@
       }
      }
     },
-    "operationId": "create_post"
+    "operationId": "create_post",
+    "x-cli": {
+     "name": "posts create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare posts create --title 'Family dinner' --caption @dinner.txt --targets 'Main Group,Youth Group' --send-at 2026-10-15T18:30 --dry-run",
+      "townsquare posts create --body @post.json --idempotency-key dinner-2026-10-15"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/posts/bulk": {
@@ -1201,7 +1489,17 @@
       }
      }
     },
-    "operationId": "bulk_update_posts"
+    "operationId": "bulk_update_posts",
+    "x-cli": {
+     "name": "posts bulk",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare posts bulk --body '{\"ids\":[41,42],\"action\":\"pause\"}' --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/posts/preview": {
@@ -1259,7 +1557,16 @@
       }
      }
     },
-    "operationId": "preview_post"
+    "operationId": "preview_post",
+    "x-cli": {
+     "name": "posts preview",
+     "effects": "read_only",
+     "examples": [
+      "townsquare posts preview --body @post.json"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/posts/{id}": {
@@ -1299,7 +1606,17 @@
       }
      }
     ],
-    "operationId": "get_post"
+    "operationId": "get_post",
+    "x-cli": {
+     "name": "posts get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare posts get 42",
+      "townsquare posts get 42 --max-depth 1"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "patch": {
     "tags": [
@@ -1351,7 +1668,17 @@
       }
      }
     ],
-    "operationId": "update_post"
+    "operationId": "update_post",
+    "x-cli": {
+     "name": "posts update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare posts update 42 --caption @dinner.txt --scope all",
+      "townsquare posts update 42 --status scheduled --dry-run"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "delete": {
     "tags": [
@@ -1419,7 +1746,18 @@
       }
      }
     ],
-    "operationId": "delete_post"
+    "operationId": "delete_post",
+    "x-cli": {
+     "name": "posts delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare posts delete 42 --dry-run",
+      "townsquare posts delete 42 --scope one --schedule-id 51 --occ 2026-10-15T18:30 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/posts/{id}/sends": {
@@ -1470,7 +1808,16 @@
       }
      }
     ],
-    "operationId": "list_upcoming_sends_of_a_post"
+    "operationId": "list_upcoming_sends_of_a_post",
+    "x-cli": {
+     "name": "posts upcoming",
+     "effects": "read_only",
+     "examples": [
+      "townsquare posts upcoming 42 --n 5"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    }
   },
   "/posts/{id}/send-now": {
@@ -1511,7 +1858,18 @@
       }
      }
     ],
-    "operationId": "send_post_now"
+    "operationId": "send_post_now",
+    "x-cli": {
+     "name": "posts send-now",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare posts send-now 42 --dry-run",
+      "townsquare posts send-now 42 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/posts/{id}/duplicate": {
@@ -1552,7 +1910,16 @@
       }
      }
     ],
-    "operationId": "duplicate_post"
+    "operationId": "duplicate_post",
+    "x-cli": {
+     "name": "posts duplicate",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare posts duplicate 42"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/posts/{id}/pause": {
@@ -1592,7 +1959,16 @@
       }
      }
     ],
-    "operationId": "pause_post"
+    "operationId": "pause_post",
+    "x-cli": {
+     "name": "posts pause",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare posts pause 42"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/posts/{id}/resume": {
@@ -1632,7 +2008,16 @@
       }
      }
     ],
-    "operationId": "resume_post"
+    "operationId": "resume_post",
+    "x-cli": {
+     "name": "posts resume",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare posts resume 42"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/sends": {
@@ -1709,7 +2094,16 @@
       }
      }
     ],
-    "operationId": "list_sends"
+    "operationId": "list_sends",
+    "x-cli": {
+     "name": "sends list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare sends list --from 2026-10-12 --to 2026-10-19 --fields items"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    }
   },
   "/sends/deliveries": {
@@ -1760,7 +2154,16 @@
       }
      }
     ],
-    "operationId": "list_deliveries_of_a_send"
+    "operationId": "list_deliveries_of_a_send",
+    "x-cli": {
+     "name": "sends deliveries",
+     "effects": "read_only",
+     "examples": [
+      "townsquare sends deliveries --schedule-id 51 --occ 2026-10-15T18:30"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    }
   },
   "/sends/move": {
@@ -1801,7 +2204,16 @@
       }
      }
     },
-    "operationId": "move_send"
+    "operationId": "move_send",
+    "x-cli": {
+     "name": "sends move",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare sends move --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --to 2026-10-15T19:00 --scope one"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/sends/copy": {
@@ -1842,7 +2254,16 @@
       }
      }
     },
-    "operationId": "copy_send"
+    "operationId": "copy_send",
+    "x-cli": {
+     "name": "sends copy",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare sends copy --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --to 2026-10-22T18:30"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/sends/skip": {
@@ -1882,7 +2303,16 @@
       }
      }
     },
-    "operationId": "skip_send"
+    "operationId": "skip_send",
+    "x-cli": {
+     "name": "sends skip",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare sends skip --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/changes": {
@@ -1915,7 +2345,37 @@
       "$ref": "#/components/responses/E404"
      }
     },
-    "operationId": "list_changes"
+    "description": "Newest first. The full count is in X-Total-Count.",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "Page size (default 200)"
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "list_changes",
+    "x-cli": {
+     "name": "history list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare history list --limit 5 --fields id,actor,summary"
+     ],
+     "output_kind": "data",
+     "cardinality": "unbounded",
+     "paginated": true
+    }
    }
   },
   "/undo": {
@@ -1959,7 +2419,16 @@
       }
      }
     },
-    "operationId": "undo"
+    "operationId": "undo",
+    "x-cli": {
+     "name": "history undo",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare history undo --expect-change 812"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/redo": {
@@ -1986,7 +2455,16 @@
       "$ref": "#/components/responses/E409"
      }
     },
-    "operationId": "redo"
+    "operationId": "redo",
+    "x-cli": {
+     "name": "history redo",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare history redo"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/test-send": {
@@ -2047,7 +2525,16 @@
       }
      }
     },
-    "operationId": "test_send_to_yourself"
+    "operationId": "test_send_to_yourself",
+    "x-cli": {
+     "name": "test send",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare test send --caption 'Testing the Friday digest' --platform whatsapp"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/telegram": {
@@ -2071,7 +2558,16 @@
       "$ref": "#/components/responses/E401"
      }
     },
-    "operationId": "get_telegram_status"
+    "operationId": "get_telegram_status",
+    "x-cli": {
+     "name": "telegram get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare telegram get"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/telegram/login": {
@@ -2105,7 +2601,16 @@
      }
     },
     "description": "Admin. Then show GET /telegram/qr.png and scan it in Telegram: Settings > Devices > Link Desktop Device.",
-    "operationId": "start_telegram_qr_login"
+    "operationId": "start_telegram_qr_login",
+    "x-cli": {
+     "name": "telegram login",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram login"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/telegram/qr.png": {
@@ -2123,6 +2628,15 @@
      "404": {
       "$ref": "#/components/responses/E404"
      }
+    },
+    "x-cli": {
+     "name": "telegram qr",
+     "effects": "read_only",
+     "examples": [
+      "townsquare telegram qr --deliver file:./telegram-qr.png"
+     ],
+     "output_kind": "opaque",
+     "media_type": "image/png"
     }
    }
   },
@@ -2174,7 +2688,16 @@
       }
      }
     },
-    "operationId": "send_telegram_two-step_password"
+    "operationId": "send_telegram_two-step_password",
+    "x-cli": {
+     "name": "telegram password",
+     "effects": "non_idempotent",
+     "examples": [
+      "printf '%s' \"$TG_PASSWORD\" | townsquare telegram password --password @-"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/telegram/logout": {
@@ -2204,7 +2727,17 @@
       "$ref": "#/components/responses/E409"
      }
     },
-    "operationId": "log_out_of_telegram"
+    "operationId": "log_out_of_telegram",
+    "x-cli": {
+     "name": "telegram logout",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram logout --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/telegram/refresh": {
@@ -2231,7 +2764,16 @@
       "$ref": "#/components/responses/E503"
      }
     },
-    "operationId": "refresh_telegram_chats"
+    "operationId": "refresh_telegram_chats",
+    "x-cli": {
+     "name": "telegram refresh",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram refresh"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/stats/summary": {
@@ -2312,7 +2854,16 @@
       "description": "Comma list of chat jids"
      }
     ],
-    "operationId": "get_engagement_summary"
+    "operationId": "get_engagement_summary",
+    "x-cli": {
+     "name": "stats summary",
+     "effects": "read_only",
+     "examples": [
+      "townsquare stats summary --days 7 --fields tiles"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/stats/summary.txt": {
@@ -2383,6 +2934,15 @@
      "200": {
       "description": "text/plain"
      }
+    },
+    "x-cli": {
+     "name": "stats text",
+     "effects": "read_only",
+     "examples": [
+      "townsquare stats text --days 7"
+     ],
+     "output_kind": "opaque",
+     "media_type": "text/plain"
     }
    }
   },
@@ -2439,7 +2999,16 @@
       "description": "One send (with schedule_id)"
      }
     ],
-    "operationId": "get_post_engagement"
+    "operationId": "get_post_engagement",
+    "x-cli": {
+     "name": "stats post",
+     "effects": "read_only",
+     "examples": [
+      "townsquare stats post 42 --max-depth 1"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/stats/badges": {
@@ -2501,7 +3070,16 @@
       "description": "YYYY-MM-DD"
      }
     ],
-    "operationId": "get_calendar_badges"
+    "operationId": "get_calendar_badges",
+    "x-cli": {
+     "name": "stats badges",
+     "effects": "read_only",
+     "examples": [
+      "townsquare stats badges --from 2026-10-12 --to 2026-10-19"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/stats/export.csv": {
@@ -2572,6 +3150,15 @@
      "200": {
       "description": "text/csv"
      }
+    },
+    "x-cli": {
+     "name": "stats export",
+     "effects": "read_only",
+     "examples": [
+      "townsquare stats export --days 90 --deliver file:./stats.csv"
+     ],
+     "output_kind": "opaque",
+     "media_type": "text/csv"
     }
    }
   },
@@ -2686,7 +3273,17 @@
       "description": "Comma list of chat jids"
      }
     ],
-    "operationId": "send_summary_to_a_chat"
+    "operationId": "send_summary_to_a_chat",
+    "x-cli": {
+     "name": "stats share",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare stats share --days 7 --to me --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/update": {
@@ -2710,7 +3307,16 @@
       "$ref": "#/components/responses/E401"
      }
     },
-    "operationId": "get_update_status"
+    "operationId": "get_update_status",
+    "x-cli": {
+     "name": "system update get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare system update get --fields current,latest,install_at"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/update/check": {
@@ -2738,7 +3344,16 @@
      }
     },
     "description": "Fetches and verifies the newest release's signed manifest. Downloads nothing.",
-    "operationId": "check_for_updates"
+    "operationId": "check_for_updates",
+    "x-cli": {
+     "name": "system update check",
+     "effects": "read_only",
+     "examples": [
+      "townsquare system update check"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/update/install": {
@@ -2802,7 +3417,21 @@
       }
      }
     },
-    "operationId": "install_update_and_restart"
+    "operationId": "install_update_and_restart",
+    "x-cli": {
+     "name": "system update install",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare system update install --yes --wait",
+      "townsquare system update install --yes --even-if-busy"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true,
+     "flags": {
+      "force": "--even-if-busy"
+     }
+    }
    }
   },
   "/autostart": {
@@ -2826,7 +3455,16 @@
       "$ref": "#/components/responses/E401"
      }
     },
-    "operationId": "get_start-at-login"
+    "operationId": "get_start-at-login",
+    "x-cli": {
+     "name": "system autostart get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare system autostart get"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "put": {
     "tags": [
@@ -2876,7 +3514,16 @@
       }
      }
     },
-    "operationId": "set_start-at-login"
+    "operationId": "set_start-at-login",
+    "x-cli": {
+     "name": "system autostart set",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare system autostart set --enabled true"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/quit": {
@@ -2909,7 +3556,17 @@
      }
     },
     "description": "Admin. Stops the server. A service manager (launchd, systemd) may start it again.",
-    "operationId": "stop_townsquare"
+    "operationId": "stop_townsquare",
+    "x-cli": {
+     "name": "system stop",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare system stop --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/config": {
@@ -2933,7 +3590,16 @@
       "$ref": "#/components/responses/E401"
      }
     },
-    "operationId": "get_server_settings"
+    "operationId": "get_server_settings",
+    "x-cli": {
+     "name": "system config get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare system config get"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "patch": {
     "tags": [
@@ -2983,7 +3649,16 @@
       }
      }
     },
-    "operationId": "change_server_settings"
+    "operationId": "change_server_settings",
+    "x-cli": {
+     "name": "system config update",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare system config update --listen 127.0.0.1:8890 --tailscale townsquare"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/restart": {
@@ -3037,7 +3712,20 @@
       }
      }
     },
-    "operationId": "restart_townsquare"
+    "operationId": "restart_townsquare",
+    "x-cli": {
+     "name": "system restart",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare system restart --yes --wait"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true,
+     "flags": {
+      "force": "--even-if-busy"
+     }
+    }
    }
   },
   "/login-link": {
@@ -3092,7 +3780,16 @@
       }
      }
     },
-    "operationId": "make_a_sign-in_link_for_a_person"
+    "operationId": "make_a_sign-in_link_for_a_person",
+    "x-cli": {
+     "name": "signin-links create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare signin-links create --base https://townsquare.example.ts.net"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/whatsapp/channels": {
@@ -3158,7 +3855,16 @@
       }
      }
     },
-    "operationId": "create_a_whatsapp_channel"
+    "operationId": "create_a_whatsapp_channel",
+    "x-cli": {
+     "name": "whatsapp channels create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare whatsapp channels create --name 'Riverside Updates' --description 'News from the center'"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/telegram/bot": {
@@ -3218,7 +3924,16 @@
       }
      }
     },
-    "operationId": "set_telegram_bot_token"
+    "operationId": "set_telegram_bot_token",
+    "x-cli": {
+     "name": "telegram bot set",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram bot set --token @bot_token.txt"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "delete": {
     "tags": [
@@ -3252,7 +3967,17 @@
      }
     },
     "description": "Admin.",
-    "operationId": "remove_telegram_bot_token"
+    "operationId": "remove_telegram_bot_token",
+    "x-cli": {
+     "name": "telegram bot remove",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram bot remove --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/whatsapp": {
@@ -3276,7 +4001,16 @@
       "$ref": "#/components/responses/E401"
      }
     },
-    "operationId": "get_whatsapp_link_status"
+    "operationId": "get_whatsapp_link_status",
+    "x-cli": {
+     "name": "whatsapp get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare whatsapp get"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/whatsapp/link": {
@@ -3323,7 +4057,16 @@
       }
      }
     },
-    "operationId": "start_linking_whatsapp"
+    "operationId": "start_linking_whatsapp",
+    "x-cli": {
+     "name": "whatsapp link",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare whatsapp link --phone 15551234567"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/whatsapp/qr.png": {
@@ -3341,6 +4084,15 @@
      "404": {
       "$ref": "#/components/responses/E404"
      }
+    },
+    "x-cli": {
+     "name": "whatsapp qr",
+     "effects": "read_only",
+     "examples": [
+      "townsquare whatsapp qr --deliver file:./whatsapp-qr.png"
+     ],
+     "output_kind": "opaque",
+     "media_type": "image/png"
     }
    }
   },
@@ -3372,7 +4124,17 @@
      }
     },
     "description": "Admin. Removes this linked device from your WhatsApp account.",
-    "operationId": "unlink_whatsapp"
+    "operationId": "unlink_whatsapp",
+    "x-cli": {
+     "name": "whatsapp logout",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare whatsapp logout --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/telegram/app": {
@@ -3428,7 +4190,16 @@
       }
      }
     },
-    "operationId": "use_your_own_telegram_app_id"
+    "operationId": "use_your_own_telegram_app_id",
+    "x-cli": {
+     "name": "telegram app set",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram app set --api-id 1234567 --api-hash @api_hash.txt"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    },
    "delete": {
     "tags": [
@@ -3457,7 +4228,17 @@
      }
     },
     "description": "Admin. Removes your own app id. Log out of Telegram first.",
-    "operationId": "use_the_shared_telegram_app_id"
+    "operationId": "use_the_shared_telegram_app_id",
+    "x-cli": {
+     "name": "telegram app reset",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare telegram app reset --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/changelog": {
@@ -3513,7 +4294,16 @@
       }
      }
     ],
-    "operationId": "get_release_notes"
+    "operationId": "get_release_notes",
+    "x-cli": {
+     "name": "changelog list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare changelog list --from v0.6.0"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    }
   },
   "/sessions": {
@@ -3543,7 +4333,16 @@
       "$ref": "#/components/responses/E403"
      }
     },
-    "operationId": "list_signed-in_browsers"
+    "operationId": "list_signed-in_browsers",
+    "x-cli": {
+     "name": "sessions list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare sessions list"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    }
   },
   "/sessions/{id}": {
@@ -3588,7 +4387,17 @@
       }
      }
     ],
-    "operationId": "sign_out_a_browser"
+    "operationId": "sign_out_a_browser",
+    "x-cli": {
+     "name": "sessions delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare sessions delete 7 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   },
   "/keys": {
@@ -3618,7 +4427,16 @@
       "$ref": "#/components/responses/E403"
      }
     },
-    "operationId": "list_api_keys"
+    "operationId": "list_api_keys",
+    "x-cli": {
+     "name": "keys list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare keys list --fields id,name,scope,last_used_at"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
    },
    "post": {
     "tags": [
@@ -3683,7 +4501,16 @@
       }
      }
     },
-    "operationId": "create_api_key"
+    "operationId": "create_api_key",
+    "x-cli": {
+     "name": "keys create",
+     "effects": "non_idempotent",
+     "examples": [
+      "townsquare keys create --name isla-agent --scope write"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
    }
   },
   "/keys/{id}": {
@@ -3728,7 +4555,17 @@
       }
      }
     ],
-    "operationId": "revoke_api_key"
+    "operationId": "revoke_api_key",
+    "x-cli": {
+     "name": "keys delete",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare keys delete 5 --yes"
+     ],
+     "output_kind": "data",
+     "cardinality": "single",
+     "confirm": true
+    }
    }
   }
  },
@@ -3823,6 +4660,10 @@
         "type": "string"
        }
       }
+     },
+     "demo": {
+      "type": "boolean",
+      "description": "Demo mode: sample data, nothing is ever sent"
      }
     }
    },
@@ -4948,6 +5789,34 @@
      "notice": {
       "type": "string",
       "description": "Create only: present when a post with a time was saved as a draft because no status was given"
+     },
+     "changed": {
+      "type": "boolean",
+      "description": "false when nothing needed doing (for example pausing a paused post)"
+     },
+     "count": {
+      "type": "integer",
+      "description": "Bulk only: posts changed"
+     },
+     "results": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "integer"
+        },
+        "result": {
+         "type": "string",
+         "enum": [
+          "changed",
+          "unchanged",
+          "not_found"
+         ]
+        }
+       }
+      },
+      "description": "Bulk only: what happened to each post"
      }
     }
    },

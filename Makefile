@@ -10,8 +10,9 @@ build:            ## bin/townsquare with version info
 ui:               ## rebuild web/dist from web/ui
 	cd web/ui && npm run build
 
-spec:             ## regenerate internal/server/openapi.json
+spec:             ## regenerate the contract (internal/contract/openapi.json) and docs/cli.md
 	python3 tools/gen_openapi.py
+	go run ./tools/clidoc
 
 test:
 	go test ./...

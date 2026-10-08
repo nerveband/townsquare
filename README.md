@@ -131,10 +131,27 @@ the pictures above. It never connects to WhatsApp or Telegram, so nothing can be
 townsquare serve --demo          # Mac app: /Applications/Townsquare.app/Contents/MacOS/townsquare-server serve --demo
 ```
 
+### For AI agents and scripts
+
+`townsquare` is also a command line built for agents. Every feature in the app is a command,
+generated from the same contract as the API, with JSON output, clear exit codes, `--dry-run`
+and `--yes` for anything that sends or deletes, and an agent guide built in:
+
+```sh
+townsquare auth local              # on the Townsquare computer: save a key for the CLI
+townsquare doctor                  # is everything ready?
+townsquare agenda --hours 24       # what goes out next
+townsquare posts create --title "Family dinner" --caption @dinner.txt \
+  --targets "Main Group" --send-at 2026-10-15T18:30 --status scheduled --dry-run
+townsquare skills show             # the guide for agents
+```
+
+All commands: [docs/cli.md](docs/cli.md), or `townsquare schema` as JSON.
+
 ### Prefer the command line?
 
 Every download also comes as a plain program (`townsquare-…-linux-arm64` and so on). Run
-`townsquare help` to see the commands: `pair` links WhatsApp in the terminal, `serve` runs the
+`townsquare --help` to see the commands: `pair` links WhatsApp in the terminal, `serve` runs the
 server, `login-link` prints a sign-in link, and `update` updates it. On Linux,
 `systemctl --user enable --now townsquare` keeps it running in the background (on a Pi without a
 screen, also run `sudo loginctl enable-linger $USER`).

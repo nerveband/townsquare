@@ -6,6 +6,29 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Added
+- **A command line for AI agents and scripts.** Every feature is a `townsquare` command
+  (`townsquare posts list`, `posts create`, `agenda`, `doctor`, ...), generated from the same
+  contract as the API so they always match. JSON output, clear exit codes, `--dry-run` and
+  `--yes` for anything that sends or deletes, safe retries, saved profiles, and a built-in agent
+  guide (`townsquare skills show`). All commands: docs/cli.md or `townsquare schema`.
+- `townsquare doctor` checks the server, key, versions, WhatsApp, Telegram and what's due;
+  `townsquare agenda` lists what goes out next.
+
+### Changed
+- The old direct commands `townsquare targets`, `status`, `send`, `allow` and `channel-create`
+  are replaced by `townsquare targets list`, `status get`, `test send` and
+  `whatsapp channels create`, which go through the running Townsquare (so its safety checks
+  apply). `townsquare due` now exits 20 when something is due (it was 3).
+
+### API changes
+- Writes accept an `Idempotency-Key` header (24-hour replay).
+- `GET /posts` and `GET /changes` take `limit` and `offset`; `GET /targets` takes `offset`.
+  `X-Total-Count` has the full count.
+- `POST /posts/bulk` returns per-post `results`; pausing a paused post returns
+  `"changed": false`. `GET /status` includes `demo`. Telegram status leaves out `app_source`
+  when Telegram isn't set up.
+
 ## [v0.6.2] - 2026-10-08
 
 ### Added

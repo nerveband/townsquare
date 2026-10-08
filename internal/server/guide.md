@@ -6,6 +6,12 @@ groups, supergroups, channels and Saved Messages.
 This API can do everything the web app does. Full reference: `GET /api/v1/openapi.json`,
 interactive docs: `/api/v1/docs`.
 
+## Command line
+
+The `townsquare` CLI does everything below with JSON output, `--dry-run`, `--yes` and exit
+codes (`townsquare skills show`, `townsquare schema`, docs/cli.md). It is generated from the
+same contract as this API.
+
 ## Auth
 
 Send `Authorization: Bearer tsq_...` on every request. Keys are created in the web app
@@ -176,3 +182,15 @@ The first admin key still has to come from the computer running Townsquare
 `POST /update/install` wait until no post is due within 15 minutes either side and nothing is
 being sent (`GET /update` → `install_at`). A new version is test-run before the switch; if it
 fails, or doesn't start properly twice, it is skipped and the current version keeps running.
+
+## Retries, paging and partial results
+
+- **Idempotency keys.** Send `Idempotency-Key: <your key>` on a write. The first response is
+  stored for 24 hours; a repeat with the same key returns it (`Idempotent-Replayed: true`)
+  instead of creating a second post or upload. Reusing a key for a different request is a 409.
+- **Paging.** `GET /posts`, `/targets` and `/changes` take `limit` and `offset`; the full
+  count is in the `X-Total-Count` header (`limit=0` returns just the count).
+- **Bulk results.** `POST /posts/bulk` returns `results`: one entry per id with
+  `changed`, `unchanged` or `not_found`.
+- **No-ops.** Pausing a paused post (or resuming a scheduled one) returns `"changed": false`
+  and adds nothing to history.

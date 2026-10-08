@@ -7,3 +7,8 @@ import _ "embed"
 //
 //go:embed CHANGELOG.md
 var Changelog string
+
+// Skill is the agent guide shipped with the CLI (`townsquare skills show`).
+//
+//go:embed skills/townsquare/SKILL.md
+var Skill string

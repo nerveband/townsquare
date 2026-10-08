@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nerveband/townsquare/internal/contract"
 	"io"
 	"net/http"
 	"sort"
@@ -17,15 +18,14 @@ import (
 	"github.com/nerveband/townsquare/internal/version"
 )
 
-//go:embed openapi.json
-var openapiJSON []byte
+var openapiJSON = contract.OpenAPI()
 
 //go:embed guide.md
 var guideMD []byte
 
 // v1 is the public REST API for scripts and AI agents. Same data as the web app,
 // with API-key auth, scopes, partial updates and names accepted for targets.
-func (s *Server) v1() http.Handler { return s.requireKey(s.v1Mux()) }
+func (s *Server) v1() http.Handler { return s.requireKey(s.idempotent(s.v1Mux())) }
 
 func (s *Server) v1Mux() *http.ServeMux {
 	m := http.NewServeMux()
@@ -198,11 +198,8 @@ func (s *Server) v1Targets(w http.ResponseWriter, r *http.Request) {
 		out = append(out, t)
 	}
 	// The body stays a plain list (v1 contract); the full match count is in a header.
-	w.Header().Set("X-Total-Count", strconv.Itoa(len(out)))
-	if n, err := strconv.Atoi(q.Get("limit")); err == nil && n > 0 && n < len(out) {
-		out = out[:n]
-	}
-	writeJSON(w, out)
+	lo, hi := pageBounds(w, r, len(out))
+	writeJSON(w, out[lo:hi])
 }
 
 func (s *Server) v1Target(w http.ResponseWriter, r *http.Request) {
@@ -398,7 +395,8 @@ func (s *Server) v1Posts(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, p)
 	}
-	writeJSON(w, withTimes(out))
+	lo, hi := pageBounds(w, r, len(out))
+	writeJSON(w, withTimes(out[lo:hi]))
 }
 
 // PostSummary is a post plus its next and most recent send, for lists and search.
@@ -585,6 +583,10 @@ func (s *Server) v1SetStatus(status string) http.HandlerFunc {
 		cur, err := s.DB.Post(r.Context(), pathID(r))
 		if err != nil {
 			fail(w, 404, err)
+			return
+		}
+		if cur.Status == status { // already there: nothing to do, nothing to undo
+			writeJSON(w, map[string]any{"changed": false, "post": cur})
 			return
 		}
 		cur.Status = status

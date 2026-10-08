@@ -162,9 +162,12 @@ func (s *Server) telegramState(w http.ResponseWriter, r *http.Request) {
 	st := s.TG.State()
 	var chats, allowed int
 	_ = s.DB.QueryRowContext(r.Context(), `SELECT COUNT(*), COALESCE(SUM(allowed),0) FROM targets WHERE platform='telegram' AND gone=0`).Scan(&chats, &allowed)
-	out := map[string]any{"configured": st.Configured, "app_source": st.AppSource, "status": st.Status, "user": st.User, "username": st.Username,
+	out := map[string]any{"configured": st.Configured, "status": st.Status, "user": st.User, "username": st.Username,
 		"error": st.Error, "qr_expires": st.QRExpires, "version": st.Version, "chats": chats, "allowlisted": allowed,
 		"queue_hours": atoi(s.DB.Setting(r.Context(), "tg_queue_hours"), 0)}
+	if st.AppSource != "" {
+		out["app_source"] = st.AppSource
+	}
 	if s.Bot != nil {
 		var bc int
 		_ = s.DB.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM targets WHERE platform='telegram_bot' AND gone=0`).Scan(&bc)

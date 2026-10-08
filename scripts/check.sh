@@ -14,9 +14,10 @@ for t in windows/amd64 linux/amd64 linux/arm64 linux/arm darwin/amd64; do
   GOOS="${t%/*}" GOARCH="${t#*/}" CGO_ENABLED=0 go vet ./... || fail "go vet failed for $t"
 done
 
-step "OpenAPI spec is generated and current"
+step "contract and CLI docs are generated and current"
 python3 tools/gen_openapi.py >/dev/null
-git diff --quiet -- internal/server/openapi.json || fail "openapi.json changed after regenerating; commit it (python3 tools/gen_openapi.py)"
+go run ./tools/clidoc >/dev/null
+git diff --quiet -- internal/contract/openapi.json docs/cli.md || fail "openapi.json or docs/cli.md changed after regenerating; commit them (make spec)"
 
 step "UI builds and web/dist is current"
 ( cd web/ui && { [ -d node_modules ] || npm ci --silent; } && npm run build --silent >/dev/null 2>&1 ) || fail "UI build failed (cd web/ui && npm run build)"

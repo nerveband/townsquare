@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates internal/server/openapi.json (OpenAPI 3.1) for the Townsquare /api/v1 API.
+"""Generates internal/contract/openapi.json (OpenAPI 3.1) for the Townsquare /api/v1 API.
 Run: python3 tools/gen_openapi.py"""
 import json
 import pathlib
@@ -20,7 +20,7 @@ schemas = {
     "Status": obj({"connected": B, "phone": S, "timezone": S, "safe_mode": B, "allowlisted_targets": I, "sent_today": I, "daily_cap": I,
                    "undo": {**S, "description": "What undo would revert next"}, "redo": S, "now": {**S, "format": "date-time"},
                    "version": {**S, "description": "App version, e.g. v0.5.0"}, "commit": S,
-                   "key": obj({"name": S, "scope": S})}),
+                   "key": obj({"name": S, "scope": S}), "demo": {**B, "description": "Demo mode: sample data, nothing is ever sent"}}),
     "Settings": obj({k: S for k in ["timezone", "safe_mode", "gap_min", "gap_max", "daily_cap", "quiet_start", "quiet_end", "grace_min", "tg_queue_hours", "stats_people", "auto_update"]},
                     desc="All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope."),
     "Target": obj({"jid": {**S, "example": "120363012345678901@g.us", "description": "WhatsApp JID; Telegram: tg:self, tg:chat:<id>, tg:ch:<id>:<hash>, tg:ch:<id>:<hash>:t<topic>, tg:story:self, tg:story:ch:<id>:<hash>; bot: tgbot:<chat id>"},
@@ -92,7 +92,10 @@ schemas = {
     "WriteResult": obj({"change": {**I, "description": "History id of this change; pass to POST /undo as expect_change. For undo/redo: the new history entry"},
                         "undo": S, "redo": S, "summary": S, "post": ref("Post"), "id": I,
                         "undid": {**I, "description": "Undo only: the change that was reverted"}, "redid": {**I, "description": "Redo only: the change that was re-applied"},
-                        "notice": {**S, "description": "Create only: present when a post with a time was saved as a draft because no status was given"}}),
+                        "notice": {**S, "description": "Create only: present when a post with a time was saved as a draft because no status was given"},
+                        "changed": {**B, "description": "false when nothing needed doing (for example pausing a paused post)"},
+                        "count": {**I, "description": "Bulk only: posts changed"},
+                        "results": {**arr(obj({"id": I, "result": {**S, "enum": ["changed", "unchanged", "not_found"]}})), "description": "Bulk only: what happened to each post"}}),
     "StatsSummary": obj({"from": S, "to": S, "days": I, "tz": S, "tiles": ref("StatTiles"), "previous": ref("StatTiles"), "member_growth": I,
         "daily": arr(obj({"day": S, "reach": I, "posts": I, "sent": I, "held": I, "failed": I, "missed": I, "members": I})),
         "speed": {"type": "object", "description": "Keys 1h, 6h, 24h, 7d", "additionalProperties": obj({"rate": N, "sends": I})},
@@ -143,8 +146,8 @@ paths = {
     "/settings": {"get": op("Settings", "Get settings", resp(ref("Settings"))),
                   "patch": op("Settings", "Update settings", OKW, ref("Settings"), errs=(400, 401, 403))},
     "/targets": {"get": op("Targets", "List targets", {**resp(arr(ref("Target"))), "headers": {"X-Total-Count": {"description": "Matches before limit", "schema": I}}}, params=[
-        q("q", desc="Name contains"), q("kind", desc="Comma list: self,status,announce,group,channel,community"), q("client_id"),
-        q("allowed", desc="true/false"), q("can_send", desc="true to hide admin-only chats"), q("limit", I), q("include_gone")])},
+        q("q", desc="Name contains"), q("kind", arr({"type": "string", "enum": ["self", "status", "announce", "group", "channel", "community"]}), "Comma list"), q("client_id"),
+        q("allowed", desc="true/false"), q("can_send", desc="true to hide admin-only chats"), q("limit", I), q("offset", I), q("include_gone")])},
     "/targets/refresh": {"post": op("Targets", "Refresh targets from WhatsApp", resp(arr(ref("Target"))), errs=(401, 503))},
     "/targets/{jid}": {"get": op("Targets", "Get target", resp(ref("Target")), params=[p("jid", S)]),
                        "patch": op("Targets", "Update target", OKW, ref("TargetPatch"), [p("jid", S)], "Set client (null clears), star, or allowlist (admin).", errs=(400, 401, 403, 404))},
@@ -165,7 +168,8 @@ paths = {
     "/media/{id}/file": {"get": {"tags": ["Media"], "summary": "Download converted file", "operationId": "media_file", "parameters": [p("id")], "responses": {"200": {"description": "The file"}, "404": {"$ref": "#/components/responses/E404"}}}},
     "/media/{id}/preview": {"get": {"tags": ["Media"], "summary": "JPEG preview", "operationId": "media_preview", "parameters": [p("id")], "responses": {"200": {"description": "image/jpeg"}, "404": {"$ref": "#/components/responses/E404"}}}},
     "/posts": {"get": op("Posts", "List posts", resp(arr(ref("PostSummary"))), params=[
-        q("status", desc="Comma list"), q("tag_id"), q("client_id"), q("target", desc="JID"), q("q", desc="Title or caption contains")]),
+        q("status", arr({"type": "string", "enum": ["draft", "scheduled", "paused", "archived"]}), "Comma list"), q("tag_id"), q("client_id"), q("target", desc="JID"), q("q", desc="Title or caption contains"),
+        q("limit", I, "Page size (all when left out)"), q("offset", I, "Skip this many; the full count is in X-Total-Count")]),
         "post": op("Posts", "Create post", OKW, ref("PostInput"), desc="Targets may be names. Posts are drafts unless status is \"scheduled\", even with a time (the response then includes a notice).", errs=(400, 401, 422))},
     "/posts/bulk": {"post": op("Posts", "Bulk update posts", OKW, ref("BulkInput"),
                                desc="One action on many posts, recorded as a single undoable change. tag/client: pass tag_id/client_id (null clears).", errs=(400, 401, 422))},
@@ -187,7 +191,8 @@ paths = {
     "/sends/move": {"post": op("Sends", "Move send", OKW, ref("SendRef"), desc="scope=one moves only this send; all shifts the whole series.")},
     "/sends/copy": {"post": op("Sends", "Copy send", OKW, ref("SendRef"), desc="Creates a new one-off post at `to`.")},
     "/sends/skip": {"post": op("Sends", "Skip send", OKW, ref("SendRef"))},
-    "/changes": {"get": op("History", "List changes", resp(arr(ref("Change"))))},
+    "/changes": {"get": op("History", "List changes", resp(arr(ref("Change"))), params=[q("limit", I, "Page size (default 200)"), q("offset", I)],
+                           desc="Newest first. The full count is in X-Total-Count.")},
     "/undo": {"post": op("History", "Undo", OKW, obj({"expect_change": {**I, "description": "Only undo if this change is still the latest"}}),
                          desc="Reverts the latest undoable change by anyone. Pass expect_change to be safe.", errs=(401, 409))},
     "/redo": {"post": op("History", "Redo", OKW, errs=(401, 409))},
@@ -251,11 +256,124 @@ paths = {
               "post": op("Keys", "Create API key", resp(obj({"key": ref("APIKey"), "secret": S, "note": S})), obj({"name": S, "scope": {**S, "enum": ["read", "write", "admin"]}}, ["name"]), errs=(401, 403, 422))},
     "/keys/{id}": {"delete": op("Keys", "Revoke API key", resp(obj({"ok": B})), params=[p("id")], errs=(401, 403, 404))},
 }
+
+# ---------------------------------------------------------------------------
+# CLI contract. Every operation above is also a `townsquare` command, declared
+# here and nowhere else: the CLI builds its commands, help, `schema` output and
+# docs/cli.md from these entries in openapi.json (x-cli). Tests fail if an
+# operation has no entry, a verb or flag isn't in the allowed vocabulary, or an
+# example doesn't parse.
+#   name: "resource verb"; effects: read_only | idempotent | non_idempotent
+#   card: single | bounded | unbounded (data commands); kind: data | opaque
+#   confirm: needs --yes without a terminal; page: server-side --limit/--offset
+R, IDEM, NON = "read_only", "idempotent", "non_idempotent"
+CLI = {
+    ("get", "/status"): dict(name="status get", effects=R, ex=["townsquare status get", "townsquare status get --fields connected,safe_mode"]),
+    ("get", "/settings"): dict(name="settings get", effects=R, ex=["townsquare settings get --fields timezone,quiet_start,quiet_end"]),
+    ("patch", "/settings"): dict(name="settings update", effects=IDEM, ex=["townsquare settings update --quiet-start 22:00 --quiet-end 06:30", "townsquare settings update --safe-mode 1"]),
+    ("get", "/targets"): dict(name="targets list", effects=R, card="unbounded", page=True, ex=["townsquare targets list --kind group,announce --allowed true --limit 20", "townsquare targets list --q isla --fields jid,name,allowed"]),
+    ("post", "/targets/refresh"): dict(name="targets refresh", effects=IDEM, card="unbounded", ex=["townsquare targets refresh --count"]),
+    ("get", "/targets/{jid}"): dict(name="targets get", effects=R, ex=["townsquare targets get 120363000000000102@g.us"]),
+    ("patch", "/targets/{jid}"): dict(name="targets update", effects=IDEM, ex=["townsquare targets update 120363000000000102@g.us --client-id 2", "townsquare targets update 120363000000000102@g.us --allowed true --dry-run"]),
+    ("get", "/tags"): dict(name="tags list", effects=R, card="bounded", ex=["townsquare tags list -o text"]),
+    ("post", "/tags"): dict(name="tags create", effects=NON, ex=["townsquare tags create --name Ramadan --color '#E0475B'"]),
+    ("patch", "/tags/{id}"): dict(name="tags update", effects=IDEM, ex=["townsquare tags update 3 --name Events"]),
+    ("delete", "/tags/{id}"): dict(name="tags delete", effects=IDEM, confirm=True, ex=["townsquare tags delete 3 --dry-run", "townsquare tags delete 3 --yes"]),
+    ("get", "/clients"): dict(name="clients list", effects=R, card="bounded", ex=["townsquare clients list --fields id,name,quiet_start,quiet_end"]),
+    ("post", "/clients"): dict(name="clients create", effects=NON, ex=["townsquare clients create --name 'Riverside Center' --color '#2DB34E'"]),
+    ("patch", "/clients/{id}"): dict(name="clients update", effects=IDEM, ex=["townsquare clients update 2 --quiet-start 22:00 --quiet-end 06:00 --timezone America/New_York"]),
+    ("delete", "/clients/{id}"): dict(name="clients delete", effects=IDEM, confirm=True, ex=["townsquare clients delete 2 --yes"]),
+    ("get", "/sets"): dict(name="sets list", effects=R, card="bounded", ex=["townsquare sets list"]),
+    ("post", "/sets"): dict(name="sets create", effects=NON, ex=["townsquare sets create --name 'All youth groups' --jids 120363000000000103@g.us,120363000000000104@g.us"]),
+    ("patch", "/sets/{id}"): dict(name="sets update", effects=IDEM, ex=["townsquare sets update 4 --name 'Youth and volunteers'"]),
+    ("delete", "/sets/{id}"): dict(name="sets delete", effects=IDEM, confirm=True, ex=["townsquare sets delete 4 --yes"]),
+    ("post", "/media"): dict(name="media upload", effects=NON, flags={"url": "--source-url"}, ex=["townsquare media upload --file ./flyer.jpg --kind image", "townsquare media upload --source-url https://example.org/flyer.jpg --kind image"]),
+    ("get", "/media/{id}"): dict(name="media get", effects=R, ex=["townsquare media get 12"]),
+    ("get", "/media/{id}/file"): dict(name="media download", effects=R, kind="opaque", media="application/octet-stream", ex=["townsquare media download 12 --deliver file:./flyer.jpg"]),
+    ("get", "/media/{id}/preview"): dict(name="media preview", effects=R, kind="opaque", media="image/jpeg", ex=["townsquare media preview 12 --deliver file:./preview.jpg"]),
+    ("get", "/posts"): dict(name="posts list", effects=R, card="unbounded", page=True, ex=["townsquare posts list --status scheduled --limit 10 --fields id,title,next_at", "townsquare posts list --q 'bake sale' --id-only"]),
+    ("post", "/posts"): dict(name="posts create", effects=NON, ex=["townsquare posts create --title 'Family dinner' --caption @dinner.txt --targets 'Main Group,Youth Group' --send-at 2026-10-15T18:30 --dry-run",
+                                                                     "townsquare posts create --body @post.json --idempotency-key dinner-2026-10-15"]),
+    ("post", "/posts/bulk"): dict(name="posts bulk", effects=NON, confirm=True, ex=["townsquare posts bulk --body '{\"ids\":[41,42],\"action\":\"pause\"}' --yes"]),
+    ("post", "/posts/preview"): dict(name="posts preview", effects=R, ex=["townsquare posts preview --body @post.json"]),
+    ("get", "/posts/{id}"): dict(name="posts get", effects=R, ex=["townsquare posts get 42", "townsquare posts get 42 --max-depth 1"]),
+    ("patch", "/posts/{id}"): dict(name="posts update", effects=IDEM, ex=["townsquare posts update 42 --caption @dinner.txt --scope all", "townsquare posts update 42 --status scheduled --dry-run"]),
+    ("delete", "/posts/{id}"): dict(name="posts delete", effects=IDEM, confirm=True, ex=["townsquare posts delete 42 --dry-run", "townsquare posts delete 42 --scope one --schedule-id 51 --occ 2026-10-15T18:30 --yes"]),
+    ("get", "/posts/{id}/sends"): dict(name="posts upcoming", effects=R, card="bounded", ex=["townsquare posts upcoming 42 --n 5"]),
+    ("post", "/posts/{id}/send-now"): dict(name="posts send-now", effects=NON, confirm=True, ex=["townsquare posts send-now 42 --dry-run", "townsquare posts send-now 42 --yes"]),
+    ("post", "/posts/{id}/duplicate"): dict(name="posts duplicate", effects=NON, ex=["townsquare posts duplicate 42"]),
+    ("post", "/posts/{id}/pause"): dict(name="posts pause", effects=IDEM, ex=["townsquare posts pause 42"]),
+    ("post", "/posts/{id}/resume"): dict(name="posts resume", effects=IDEM, ex=["townsquare posts resume 42"]),
+    ("get", "/sends"): dict(name="sends list", effects=R, card="bounded", ex=["townsquare sends list --from 2026-10-12 --to 2026-10-19 --fields items"]),
+    ("get", "/sends/deliveries"): dict(name="sends deliveries", effects=R, card="bounded", ex=["townsquare sends deliveries --schedule-id 51 --occ 2026-10-15T18:30"]),
+    ("post", "/sends/move"): dict(name="sends move", effects=NON, ex=["townsquare sends move --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --to 2026-10-15T19:00 --scope one"]),
+    ("post", "/sends/copy"): dict(name="sends copy", effects=NON, ex=["townsquare sends copy --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30 --to 2026-10-22T18:30"]),
+    ("post", "/sends/skip"): dict(name="sends skip", effects=IDEM, ex=["townsquare sends skip --post-id 42 --schedule-id 51 --occ 2026-10-15T18:30"]),
+    ("get", "/changes"): dict(name="history list", effects=R, card="unbounded", page=True, ex=["townsquare history list --limit 5 --fields id,actor,summary"]),
+    ("post", "/undo"): dict(name="history undo", effects=NON, ex=["townsquare history undo --expect-change 812"]),
+    ("post", "/redo"): dict(name="history redo", effects=NON, ex=["townsquare history redo"]),
+    ("post", "/test-send"): dict(name="test send", effects=NON, ex=["townsquare test send --caption 'Testing the Friday digest' --platform whatsapp"]),
+    ("get", "/telegram"): dict(name="telegram get", effects=R, ex=["townsquare telegram get"]),
+    ("post", "/telegram/login"): dict(name="telegram login", effects=IDEM, ex=["townsquare telegram login"]),
+    ("get", "/telegram/qr.png"): dict(name="telegram qr", effects=R, kind="opaque", media="image/png", ex=["townsquare telegram qr --deliver file:./telegram-qr.png"]),
+    ("post", "/telegram/password"): dict(name="telegram password", effects=NON, ex=["printf '%s' \"$TG_PASSWORD\" | townsquare telegram password --password @-"]),
+    ("post", "/telegram/logout"): dict(name="telegram logout", effects=IDEM, confirm=True, ex=["townsquare telegram logout --yes"]),
+    ("post", "/telegram/refresh"): dict(name="telegram refresh", effects=IDEM, ex=["townsquare telegram refresh"]),
+    ("post", "/telegram/app"): dict(name="telegram app set", effects=IDEM, ex=["townsquare telegram app set --api-id 1234567 --api-hash @api_hash.txt"]),
+    ("delete", "/telegram/app"): dict(name="telegram app reset", effects=IDEM, confirm=True, ex=["townsquare telegram app reset --yes"]),
+    ("put", "/telegram/bot"): dict(name="telegram bot set", effects=IDEM, ex=["townsquare telegram bot set --token @bot_token.txt"]),
+    ("delete", "/telegram/bot"): dict(name="telegram bot remove", effects=IDEM, confirm=True, ex=["townsquare telegram bot remove --yes"]),
+    ("get", "/stats/summary"): dict(name="stats summary", effects=R, ex=["townsquare stats summary --days 7 --fields tiles"]),
+    ("get", "/stats/summary.txt"): dict(name="stats text", effects=R, kind="opaque", media="text/plain", ex=["townsquare stats text --days 7"]),
+    ("get", "/stats/posts/{id}"): dict(name="stats post", effects=R, ex=["townsquare stats post 42 --max-depth 1"]),
+    ("get", "/stats/badges"): dict(name="stats badges", effects=R, ex=["townsquare stats badges --from 2026-10-12 --to 2026-10-19"]),
+    ("get", "/stats/export.csv"): dict(name="stats export", effects=R, kind="opaque", media="text/csv", ex=["townsquare stats export --days 90 --deliver file:./stats.csv"]),
+    ("post", "/stats/share"): dict(name="stats share", effects=NON, confirm=True, ex=["townsquare stats share --days 7 --to me --yes"]),
+    ("get", "/update"): dict(name="system update get", effects=R, ex=["townsquare system update get --fields current,latest,install_at"]),
+    ("post", "/update/check"): dict(name="system update check", effects=R, ex=["townsquare system update check"]),
+    ("post", "/update/install"): dict(name="system update install", effects=IDEM, confirm=True, flags={"force": "--even-if-busy"}, ex=["townsquare system update install --yes --wait", "townsquare system update install --yes --even-if-busy"]),
+    ("get", "/autostart"): dict(name="system autostart get", effects=R, ex=["townsquare system autostart get"]),
+    ("put", "/autostart"): dict(name="system autostart set", effects=IDEM, ex=["townsquare system autostart set --enabled true"]),
+    ("post", "/quit"): dict(name="system stop", effects=IDEM, confirm=True, ex=["townsquare system stop --yes"]),
+    ("get", "/config"): dict(name="system config get", effects=R, ex=["townsquare system config get"]),
+    ("patch", "/config"): dict(name="system config update", effects=IDEM, ex=["townsquare system config update --listen 127.0.0.1:8890 --tailscale townsquare"]),
+    ("post", "/restart"): dict(name="system restart", effects=NON, confirm=True, flags={"force": "--even-if-busy"}, ex=["townsquare system restart --yes --wait"]),
+    ("get", "/changelog"): dict(name="changelog list", effects=R, card="bounded", ex=["townsquare changelog list --from v0.6.0"]),
+    ("post", "/login-link"): dict(name="signin-links create", effects=NON, ex=["townsquare signin-links create --base https://townsquare.example.ts.net"]),
+    ("get", "/whatsapp"): dict(name="whatsapp get", effects=R, ex=["townsquare whatsapp get"]),
+    ("post", "/whatsapp/link"): dict(name="whatsapp link", effects=IDEM, ex=["townsquare whatsapp link --phone 15551234567"]),
+    ("get", "/whatsapp/qr.png"): dict(name="whatsapp qr", effects=R, kind="opaque", media="image/png", ex=["townsquare whatsapp qr --deliver file:./whatsapp-qr.png"]),
+    ("post", "/whatsapp/logout"): dict(name="whatsapp logout", effects=IDEM, confirm=True, ex=["townsquare whatsapp logout --yes"]),
+    ("post", "/whatsapp/channels"): dict(name="whatsapp channels create", effects=NON, ex=["townsquare whatsapp channels create --name 'Riverside Updates' --description 'News from the center'"]),
+    ("get", "/sessions"): dict(name="sessions list", effects=R, card="bounded", ex=["townsquare sessions list"]),
+    ("delete", "/sessions/{id}"): dict(name="sessions delete", effects=IDEM, confirm=True, ex=["townsquare sessions delete 7 --yes"]),
+    ("get", "/keys"): dict(name="keys list", effects=R, card="bounded", ex=["townsquare keys list --fields id,name,scope,last_used_at"]),
+    ("post", "/keys"): dict(name="keys create", effects=NON, ex=["townsquare keys create --name isla-agent --scope write"]),
+    ("delete", "/keys/{id}"): dict(name="keys delete", effects=IDEM, confirm=True, ex=["townsquare keys delete 5 --yes"]),
+}
+for (method, path), c in CLI.items():
+    assert path in paths and method in paths[path], f"CLI entry for unknown operation {method.upper()} {path}"
+for path, ops in paths.items():
+    for method, o in ops.items():
+        c = CLI.get((method, path))
+        assert c, f"{method.upper()} {path} needs a CLI entry in tools/gen_openapi.py"
+        x = {"name": c["name"], "effects": c["effects"], "examples": c["ex"]}
+        kind = c.get("kind", "data")
+        x["output_kind"] = kind
+        if kind == "opaque":
+            x["media_type"] = c["media"]
+        else:
+            x["cardinality"] = c.get("card", "single")
+        if c.get("confirm"): x["confirm"] = True
+        if c.get("page"): x["paginated"] = True
+        if c.get("flags"): x["flags"] = c["flags"]
+        o["x-cli"] = x
 for k in ("409",):
     pass
 
 spec = {
     "openapi": "3.1.0",
+    "x-generated": "by tools/gen_openapi.py; do not edit by hand (make spec)",
     "info": {"title": "Townsquare API", "version": "1.0.0",
              "description": "Schedule WhatsApp posts to groups, communities, channels and Status. Everything the web app can do. "
                             "Read the agent guide at /api/v1/guide.md first. All changes are recorded in history and can be undone."},
@@ -286,6 +404,6 @@ spec = {
                                    (409, "Conflict"), (422, "Invalid input (message explains what to fix)"), (503, "WhatsApp not connected")]},
     },
 }
-out = pathlib.Path(__file__).resolve().parent.parent / "internal/server/openapi.json"
+out = pathlib.Path(__file__).resolve().parent.parent / "internal/contract/openapi.json"
 out.write_text(json.dumps(spec, indent=1, ensure_ascii=False))
 print("wrote", out, len(paths), "paths")

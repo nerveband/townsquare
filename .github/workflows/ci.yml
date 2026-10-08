@@ -24,6 +24,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/ui/package-lock.json
       - run: scripts/check.sh
+      - name: CLI schema conforms to the CLI Spec v0.3
+        run: |
+          pip install --quiet jsonschema
+          go run ./cmd/townsquare schema | python3 tools/validate_clispec.py
 
   platforms:
     name: build and test (${{ matrix.os }})
@@ -40,6 +44,11 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: go build -o townsquare-ci${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/townsquare
+      - name: agent CLI proof of behavior
+        shell: bash
+        run: |
+          exe=./townsquare-ci; [ "$RUNNER_OS" = Windows ] && exe=./townsquare-ci.exe
+          scripts/cli-e2e.sh "$exe"
       - name: the program starts and answers
         shell: bash
         run: |

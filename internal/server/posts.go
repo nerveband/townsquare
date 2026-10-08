@@ -130,10 +130,13 @@ func (s *Server) bulkPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n := 0
+	var results []map[string]any // per post: changed, unchanged or not_found
 	cid, err := s.DB.Mutate(ctx, actorOf(r), "", keys, func(tx *store.Tx) error {
+		results = results[:0]
 		for _, id := range in.IDs {
 			p, err := tx.Post(id)
 			if errors.Is(err, store.ErrNotFound) {
+				results = append(results, map[string]any{"id": id, "result": "not_found"})
 				continue
 			}
 			if err != nil {
@@ -145,14 +148,17 @@ func (s *Server) bulkPosts(w http.ResponseWriter, r *http.Request) {
 					return err
 				}
 				n++
+				results = append(results, map[string]any{"id": id, "result": "changed"})
 				continue
 			case "pause":
 				if p.Status != "scheduled" {
+					results = append(results, map[string]any{"id": id, "result": "unchanged"})
 					continue
 				}
 				p.Status = "paused"
 			case "resume":
 				if p.Status != "paused" {
+					results = append(results, map[string]any{"id": id, "result": "unchanged"})
 					continue
 				}
 				p.Status = "scheduled"
@@ -182,6 +188,7 @@ func (s *Server) bulkPosts(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			n++
+			results = append(results, map[string]any{"id": id, "result": "changed"})
 		}
 		return nil
 	})
@@ -191,7 +198,7 @@ func (s *Server) bulkPosts(w http.ResponseWriter, r *http.Request) {
 	}
 	summary := fmt.Sprintf("%s %d %s", verb, n, map[bool]string{true: "post", false: "posts"}[n == 1])
 	_, _ = s.DB.ExecContext(ctx, `UPDATE changes SET summary=? WHERE id=?`, summary, cid)
-	s.mutated(w, r, cid, map[string]any{"summary": summary, "count": n})
+	s.mutated(w, r, cid, map[string]any{"summary": summary, "count": n, "results": results, "changed": n > 0})
 }
 
 func (s *Server) getPost(w http.ResponseWriter, r *http.Request) {
@@ -799,7 +806,12 @@ func (s *Server) skipSend(w http.ResponseWriter, r *http.Request) {
 // ---------- history ----------
 
 func (s *Server) changes(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, s.DB.Changes(r.Context(), 200))
+	cs := s.DB.Changes(r.Context(), 1000)
+	lo, hi := pageBounds(w, r, len(cs))
+	if r.URL.Query().Get("limit") == "" && r.URL.Query().Get("offset") == "" {
+		hi = min(len(cs), 200) // the web app's history panel
+	}
+	writeJSON(w, cs[lo:hi])
 }
 
 func (s *Server) undo(w http.ResponseWriter, r *http.Request) {

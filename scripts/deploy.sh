@@ -28,11 +28,11 @@ LABEL=com.townsquare.server
 DOMAIN="gui/$(id -u)"
 V="${1:-$(gh release view --json tagName --jq .tagName)}"
 
-# 1. Never restart right around a send. (Exit code 3 = something is due.)
+# 1. Never restart right around a send. (Exit code 20 = something is due.)
 for b in "$BIN" bin/townsquare; do
   [ -x "$b" ] || continue
   code=0; "$b" --data "$DATA" due --within 15m >/dev/null 2>&1 || code=$?
-  if [ "$code" = 3 ] && [ -z "${FORCE:-}" ]; then
+  if { [ "$code" = 20 ] || [ "$code" = 3 ]; } && [ -z "${FORCE:-}" ]; then  # 3 = versions before v0.7
     "$b" --data "$DATA" due --within 15m || true
     echo "a post is due within 15 minutes; deploy after it goes out (or FORCE=1)"; exit 1
   fi
