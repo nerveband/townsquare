@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/nerveband/townsquare/internal/appconfig"
-	"github.com/nerveband/townsquare/internal/cli"
 	"github.com/nerveband/townsquare/internal/autostart"
+	"github.com/nerveband/townsquare/internal/cli"
 	"github.com/nerveband/townsquare/internal/server"
 	"github.com/nerveband/townsquare/internal/store"
 	"github.com/nerveband/townsquare/internal/tg"
@@ -30,7 +30,6 @@ import (
 	"github.com/nerveband/townsquare/web"
 	"golang.org/x/term"
 )
-
 
 func main() {
 	home, _ := os.UserHomeDir()
