@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.8.0] - 2026-10-08
+
 ### Added
 - **Take a post back.** Open a sent post to delete it for everyone in every chat it went to
   (WhatsApp allows about 2.5 days, Telegram has no limit), or to fix its text (WhatsApp: 15
