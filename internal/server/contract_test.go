@@ -36,6 +36,11 @@ func TestResponsesMatchContract(t *testing.T) {
 	if err := s.SeedDemo(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// A document needs no ffmpeg, so this works on every CI machine.
+	doc, err := s.ingestMedia(ctx, "agenda.pdf", "", "document", strings.NewReader(demoPDF))
+	if err != nil {
+		t.Fatal(err)
+	}
 	key, _, err := db.CreateAPIKey(ctx, "contract-test", "admin")
 	if err != nil {
 		t.Fatal(err)
@@ -79,6 +84,9 @@ func TestResponsesMatchContract(t *testing.T) {
 			continue
 		}
 		url := "/api/v1" + path
+		if strings.HasPrefix(path, "/media/") {
+			url = strings.ReplaceAll(url, "{id}", fmt.Sprint(doc.ID))
+		}
 		for k, v := range ids {
 			url = strings.ReplaceAll(url, k, v)
 		}
