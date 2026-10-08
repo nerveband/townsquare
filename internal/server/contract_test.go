@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -27,7 +28,14 @@ func TestResponsesMatchContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	cli, err := wa.Open(ctx, dir, "ERROR")
+	// The WhatsApp session database stays open for the whole process, which
+	// Windows won't let t.TempDir delete; use a folder we clean up best-effort.
+	waDir, err := os.MkdirTemp("", "ts-contract-wa-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(waDir) })
+	cli, err := wa.Open(ctx, waDir, "ERROR")
 	if err != nil {
 		t.Fatal(err)
 	}
