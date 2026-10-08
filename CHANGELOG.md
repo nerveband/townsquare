@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-10-08
+
 ### Added
 - **A command line for AI agents and scripts.** Every feature is a `townsquare` command
   (`townsquare posts list`, `posts create`, `agenda`, `doctor`, ...), generated from the same
