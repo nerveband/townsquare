@@ -21,6 +21,11 @@ import (
 // handler can't change shape without the contract (and with it the CLI, the
 // docs and the agent guide) changing too.
 func TestResponsesMatchContract(t *testing.T) {
+	t.Run("demo data", func(t *testing.T) { checkContract(t, true) })
+	t.Run("empty database", func(t *testing.T) { checkContract(t, false) })
+}
+
+func checkContract(t *testing.T, seed bool) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	db, err := store.Open(dir)
@@ -41,8 +46,10 @@ func TestResponsesMatchContract(t *testing.T) {
 	}
 	t.Cleanup(cli.Disconnect)
 	s := &Server{DB: db, WA: cli, DataDir: dir, Demo: true}
-	if err := s.SeedDemo(ctx); err != nil {
-		t.Fatal(err)
+	if seed {
+		if err := s.SeedDemo(ctx); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// A document needs no ffmpeg, so this works on every CI machine.
 	doc, err := s.ingestMedia(ctx, "agenda.pdf", "", "document", strings.NewReader(demoPDF))
@@ -104,6 +111,9 @@ func TestResponsesMatchContract(t *testing.T) {
 		req := httptest.NewRequest("GET", url, nil).WithContext(context.WithValue(ctx, keyCtx, key))
 		rec := httptest.NewRecorder()
 		m.ServeHTTP(rec, req)
+		if rec.Code == 404 && !seed && strings.Contains(path, "{") {
+			continue // nothing to look up in an empty database
+		}
 		if rec.Code != 200 {
 			t.Errorf("GET %s: status %d: %s", url, rec.Code, rec.Body.String())
 			continue
@@ -120,10 +130,13 @@ func TestResponsesMatchContract(t *testing.T) {
 		}
 		checked++
 	}
-	if checked < 25 {
+	if checked < 20 {
 		t.Fatalf("only %d read operations checked", checked)
 	}
 
+	if !seed {
+		return
+	}
 	// Writes: the shapes agents rely on (ids, change numbers) must match too.
 	writes := []struct{ method, path, body string }{
 		{"POST", "/tags", `{"name":"Contract","color":"#123456"}`},
@@ -278,7 +291,7 @@ func typeIs(t string, val any) bool {
 		return ok
 	case "array":
 		_, ok := val.([]any)
-		return ok || val == nil // Go encodes empty slices as null in places; the CLI treats both as empty
+		return ok // null breaks clients that index into the list; send [] (declare "null" in type if it can be absent)
 	case "object":
 		_, ok := val.(map[string]any)
 		return ok || val == nil

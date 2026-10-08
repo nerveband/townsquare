@@ -209,7 +209,7 @@
 
       <section class="card">
         <h3>Reactions <small>most used</small></h3>
-        {#if data.emoji.length}
+        {#if data.emoji?.length}
           <div class="emoji">{#each data.emoji as e}<div><span class="em">{e.emoji}</span><div class="bar"><div style="width:{(e.count / emojiMax) * 100}%"></div></div><b>{num(e.count)}</b></div>{/each}</div>
         {:else}<p class="hint">No reactions yet.</p>{/if}
       </section>

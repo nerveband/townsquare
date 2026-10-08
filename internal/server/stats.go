@@ -861,7 +861,7 @@ func (s *Server) buildSummary(ctx context.Context, f statFilter) map[string]any 
 		Emoji string `json:"emoji"`
 		Count int    `json:"count"`
 	}
-	var emojis []em
+	emojis := []em{} // never null: clients index into it
 	for e, n := range emoji {
 		emojis = append(emojis, em{e, n})
 	}
@@ -944,7 +944,7 @@ func (s *Server) statsPost(w http.ResponseWriter, r *http.Request) {
 		ReadRate float64 `json:"read_rate"`
 		Reach    int     `json:"reach"`
 	}
-	var sends []sendOut
+	sends := []sendOut{}
 	var dids []int64
 	sentAt := map[int64]int64{}
 	emoji := map[string]int{}
@@ -968,7 +968,7 @@ func (s *Server) statsPost(w http.ResponseWriter, r *http.Request) {
 	}
 	curve := make([]int, 48)
 	names := s.DB.Setting(ctx, "stats_people") == "1"
-	var people []store.StatPerson
+	people := []store.StatPerson{}
 	for _, p := range s.DB.StatPeople(ctx, dids) {
 		if p.What == "read" || p.What == "played" {
 			h := int((p.At - sentAt[p.DeliveryID]) / 3600)
