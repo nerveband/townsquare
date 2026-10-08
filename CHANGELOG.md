@@ -6,6 +6,9 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Fixed
+- CLI: `--fields` and `--transform` now apply to `--dry-run` output too.
+
 ## [v0.8.0] - 2026-10-08
 
 ### Added

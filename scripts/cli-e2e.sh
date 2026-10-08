@@ -94,6 +94,7 @@ expect 2 "missing value" -- "$T" posts list --status
 # Safety rails.
 expect 0 "dry-run create" -- "$T" posts create --title E2E --caption hi --targets "Main Group" --send-at 2030-01-02T09:00 --dry-run
 has "$OUT" '"validated":"server"' "server-validated dry run"; has "$OUT" '"next_sends"' "dry run preview"
+expect 0 "dry-run transform" -- "$T" posts create --title E2E --caption hi --targets "Main Group" --send-at 2030-01-02T09:00 --dry-run --transform validated; has "$OUT" 'server' "--transform on dry runs"
 BEFORE="$("$T" posts list --count --transform count)"
 expect 0 "create" -- "$T" posts create --title E2E --caption hi --targets "Main Group" --idempotency-key e2e-1 --transform post.id
 ID="$OUT"

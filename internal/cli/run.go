@@ -354,7 +354,7 @@ func execute(o *opts, c *Command, rest []string) error {
 		var doc map[string]any
 		_ = jsonUnmarshal(body, &doc)
 		doc["validated"], doc["scope"], doc["command"] = "server", "remote", c.Name
-		return printDoc(os.Stdout, doc, o.resolvedOutput(), isTTY(os.Stdout))
+		return out(o, doc)
 	}
 	if o.dryRun && c.Effects != "read_only" {
 		return dryRun(o, c, r, conn)
@@ -538,8 +538,10 @@ func dryRun(o *opts, c *Command, r *request, conn Resolved) error {
 			}
 		}
 	}
-	return printDoc(os.Stdout, out, o.resolvedOutput(), isTTY(os.Stdout))
+	return outDoc(o, out)
 }
+
+func outDoc(o *opts, v map[string]any) error { return out(o, v) }
 
 // call sends a request with retries where retrying is safe.
 func call(o *opts, c *Command, r *request, conn Resolved) (*http.Response, []byte, error) {
