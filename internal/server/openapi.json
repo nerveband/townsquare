@@ -67,6 +67,14 @@
   {
    "name": "Keys",
    "description": "API keys (admin scope)."
+  },
+  {
+   "name": "WhatsApp",
+   "description": "Link or unlink your WhatsApp account from the browser or an agent."
+  },
+  {
+   "name": "System",
+   "description": "Version, signed self-updates, start at login, and stopping the server."
   }
  ],
  "paths": {
@@ -2681,6 +2689,405 @@
     "operationId": "send_summary_to_a_chat"
    }
   },
+  "/update": {
+   "get": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Get update status",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UpdateState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "operationId": "get_update_status"
+   }
+  },
+  "/update/check": {
+   "post": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Check for updates",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UpdateState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Fetches and verifies the newest release's signed manifest. Downloads nothing.",
+    "operationId": "check_for_updates"
+   }
+  },
+  "/update/install": {
+   "post": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Install update and restart",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          },
+          "restarting": {
+           "type": "boolean"
+          },
+          "version": {
+           "type": "string"
+          },
+          "up_to_date": {
+           "type": "boolean"
+          },
+          "current": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Downloads the newest release, checks its signature and hash, and restarts into it. Refuses (409 busy) when a post is due within 15 minutes unless force is true, and (409 built_from_source) on builds from source.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "force": {
+          "type": "boolean",
+          "description": "Restart even when a post is due within 15 minutes"
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "install_update_and_restart"
+   }
+  },
+  "/autostart": {
+   "get": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Get start-at-login",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Autostart"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "operationId": "get_start-at-login"
+   },
+   "put": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Set start-at-login",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Autostart"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. macOS LaunchAgent, Linux systemd user service, or Windows Run key. Takes effect at the next login.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "enabled": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "set_start-at-login"
+   }
+  },
+  "/quit": {
+   "post": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Stop Townsquare",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "ok": {
+           "type": "boolean"
+          }
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     }
+    },
+    "description": "Admin. Stops the server. A service manager (launchd, systemd) may start it again.",
+    "operationId": "stop_townsquare"
+   }
+  },
+  "/whatsapp": {
+   "get": {
+    "tags": [
+     "WhatsApp"
+    ],
+    "summary": "Get WhatsApp link status",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WhatsAppState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "operationId": "get_whatsapp_link_status"
+   }
+  },
+  "/whatsapp/link": {
+   "post": {
+    "tags": [
+     "WhatsApp"
+    ],
+    "summary": "Start linking WhatsApp",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WhatsAppState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Then show GET /whatsapp/qr.png and scan it in WhatsApp: Settings > Linked devices > Link a device. Codes refresh for up to 10 minutes.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "phone": {
+          "type": "string",
+          "description": "Optional, with country code, for a typed pairing code"
+         }
+        }
+       }
+      }
+     }
+    },
+    "operationId": "start_linking_whatsapp"
+   }
+  },
+  "/whatsapp/qr.png": {
+   "get": {
+    "tags": [
+     "WhatsApp"
+    ],
+    "summary": "WhatsApp link QR code",
+    "operationId": "whatsapp_qr",
+    "description": "Admin. PNG of the current link QR while linking.",
+    "responses": {
+     "200": {
+      "description": "image/png"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    }
+   }
+  },
+  "/whatsapp/logout": {
+   "post": {
+    "tags": [
+     "WhatsApp"
+    ],
+    "summary": "Unlink WhatsApp",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WhatsAppState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Removes this linked device from your WhatsApp account.",
+    "operationId": "unlink_whatsapp"
+   }
+  },
+  "/telegram/app": {
+   "post": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Set Telegram app id",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Saves the api_id and api_hash from my.telegram.org (API development tools) and starts Telegram. Then log in with /telegram/login.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "api_id": {
+          "type": "string"
+         },
+         "api_hash": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "api_id",
+         "api_hash"
+        ]
+       }
+      }
+     }
+    },
+    "operationId": "set_telegram_app_id"
+   }
+  },
   "/sessions": {
    "get": {
     "tags": [
@@ -3023,6 +3430,9 @@
      },
      "stats_people": {
       "type": "string"
+     },
+     "auto_update": {
+      "type": "string"
      }
     },
     "description": "All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope."
@@ -3188,6 +3598,101 @@
      }
     },
     "description": "Quiet hours apply to chats assigned to this client (and to posts with this client when the chat has none)."
+   },
+   "UpdateState": {
+    "type": "object",
+    "properties": {
+     "current": {
+      "type": "string"
+     },
+     "latest": {
+      "type": "string"
+     },
+     "notes": {
+      "type": "string",
+      "description": "Release notes URL"
+     },
+     "available": {
+      "type": "boolean"
+     },
+     "staged": {
+      "type": "string",
+      "description": "Downloaded version that starts on the next restart"
+     },
+     "checked_at": {
+      "type": "integer"
+     },
+     "error": {
+      "type": "string"
+     },
+     "platform": {
+      "type": "string",
+      "description": "e.g. darwin-arm64, linux-armv7, windows-amd64"
+     },
+     "dev": {
+      "type": "boolean",
+      "description": "Built from source: updates are reported, never installed"
+     },
+     "auto": {
+      "type": "boolean",
+      "description": "auto_update setting"
+     }
+    }
+   },
+   "Autostart": {
+    "type": "object",
+    "properties": {
+     "supported": {
+      "type": "boolean"
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "app_mode": {
+      "type": "boolean",
+      "description": "Started by opening the app (offers Quit)"
+     }
+    }
+   },
+   "WhatsAppState": {
+    "type": "object",
+    "properties": {
+     "linked": {
+      "type": "boolean"
+     },
+     "connected": {
+      "type": "boolean"
+     },
+     "number": {
+      "type": "string"
+     },
+     "link": {
+      "type": "object",
+      "properties": {
+       "state": {
+        "type": "string",
+        "enum": [
+         "waiting",
+         "code",
+         "linked",
+         "error"
+        ]
+       },
+       "pair_code": {
+        "type": "string"
+       },
+       "expires": {
+        "type": "integer"
+       },
+       "message": {
+        "type": "string"
+       },
+       "version": {
+        "type": "integer"
+       }
+      }
+     }
+    }
    },
    "TelegramState": {
     "type": "object",

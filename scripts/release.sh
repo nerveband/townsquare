@@ -3,7 +3,7 @@
 #  1. clean tree on master, in sync with origin
 #  2. CHANGELOG.md has a "## [v0.6.0]" section (move items out of Unreleased first)
 #  3. all checks pass
-#  4. build darwin/arm64 + linux/amd64 binaries with version info
+#  4. build every download (scripts/package.sh): binaries, Mac dmg, .deb, signed latest.json
 #  5. tag, push the tag, create the GitHub release with the changelog notes
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -20,11 +20,7 @@ NOTES="$(awk -v v="$V" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit
 
 scripts/check.sh
 
-rm -rf dist && mkdir -p dist
-for t in darwin/arm64 linux/amd64; do
-  scripts/build.sh "$V" "$t" "dist/townsquare-$V-${t%/*}-${t#*/}"
-done
-( cd dist && shasum -a 256 townsquare-* > SHA256SUMS )
+scripts/package.sh "$V"
 
 if [ "$DRY" = "--dry-run" ]; then
   echo "--- dry run: would tag $V and publish these notes:"; echo "$NOTES"; ls -la dist; exit 0

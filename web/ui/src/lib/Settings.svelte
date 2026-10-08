@@ -96,6 +96,58 @@
   async function tgRefresh() { tgBusy = true; try { tg = await api('POST', '/api/telegram/refresh'); await loadTargets(); toast('Telegram chats refreshed') } catch (e) { toast(e.message) } finally { tgBusy = false } }
   async function tgTest() { try { await api('POST', '/api/test', { platform: 'telegram', caption: '*Townsquare* test: this went to your Saved Messages only.' }); toast('Sent a test to your Telegram Saved Messages') } catch (e) { toast(e.message) } }
 
+  // WhatsApp linking
+  let wa = $state(null)
+  let waPhone = $state('')
+  let waBusy = $state(false)
+  let waSure = $state(false)
+  let waTimer
+  async function loadWA() {
+    try { wa = await api('GET', '/api/whatsapp') } catch { wa = null }
+    clearTimeout(waTimer)
+    const st = wa?.link?.state
+    if (tab === 'general' && wa && !wa.linked && (st === 'waiting' || st === 'code')) waTimer = setTimeout(loadWA, 1500)
+    if (tab === 'general' && wa?.linked && !wa.connected) waTimer = setTimeout(loadWA, 2000)
+  }
+  async function waLink() { waBusy = true; try { wa = await api('POST', '/api/whatsapp/link', { phone: waPhone }); loadWA() } catch (e) { toast(e.message) } finally { waBusy = false } }
+  async function waLogout() { waSure = false; try { wa = await api('POST', '/api/whatsapp/logout'); toast('WhatsApp unlinked') } catch (e) { toast(e.message) } }
+
+  // Updates, start at login, quit
+  let upd = $state(null)
+  let auto = $state(null)
+  let updBusy = $state('')
+  async function loadUpd() {
+    try { upd = await api('GET', '/api/update') } catch { upd = null }
+    try { auto = await api('GET', '/api/autostart') } catch { auto = null }
+  }
+  $effect(() => { if (tab === 'general') { loadWA(); loadUpd() } return () => clearTimeout(waTimer) })
+  async function checkUpd() { updBusy = 'check'; try { upd = await api('POST', '/api/update/check') } catch (e) { toast(e.message) } finally { updBusy = '' } }
+  async function installUpd(force = false) {
+    updBusy = 'install'
+    try {
+      const r = await api('POST', '/api/update/install', { force })
+      if (r.up_to_date) { toast('Already up to date'); updBusy = ''; return }
+      toast(`Updating to ${r.version}. Townsquare restarts in a few seconds.`)
+      const want = r.version
+      for (let i = 0; i < 60; i++) {
+        await new Promise((ok) => setTimeout(ok, 2000))
+        try { const u = await api('GET', '/api/update'); if (u.current === want) { location.reload(); return } } catch {}
+      }
+      toast('The update is taking longer than expected. Reload the page in a minute.')
+    } catch (e) {
+      if (/due within|being sent/.test(e.message)) { toast(e.message); updBusy = 'busy' } else { toast(e.message); updBusy = '' }
+      return
+    }
+    updBusy = ''
+  }
+  async function setAutoUpd(on) { await act(api('PUT', '/api/settings', { auto_update: on ? '1' : '0' })); loadUpd() }
+  async function setLogin(on) { try { auto = await api('PUT', '/api/autostart', { enabled: on }); toast(on ? 'Townsquare will start when you log in' : 'Townsquare won’t start at login') } catch (e) { toast(e.message) } }
+  async function quitApp() { try { await api('POST', '/api/quit'); document.body.innerHTML = '<p style="font:16px system-ui;padding:40px">Townsquare stopped. Open the app again to restart it.</p>' } catch (e) { toast(e.message) } }
+
+  // Telegram app id
+  let tgApp = $state({ api_id: '', api_hash: '' })
+  async function tgSaveApp() { tgBusy = true; try { tg = await api('POST', '/api/telegram/app', tgApp); loadTG() } catch (e) { toast(e.message) } finally { tgBusy = false } }
+
   // API keys
   let keys = $state([])
   let newKey = $state({ name: '', scope: 'write' })
@@ -142,8 +194,56 @@
   <div class="pane">
     {#if tab === 'general'}
       <h3>WhatsApp</h3>
-      <p class="st"><span class="dot" class:on={app.connected}></span>{app.connected ? 'Connected' : 'Not connected'} {#if app.phone}as +{app.phone}{/if} · linked device “Townsquare” · sent today: {app.sentToday}</p>
-      <p class="muted">Townsquare {app.version || 'dev'} · <a href="/api/v1/docs" target="_blank" rel="noreferrer">API docs</a></p>
+      {#if wa && !wa.linked && !app.demo}
+        {@const ls = wa.link?.state}
+        {#if ls === 'code' || ls === 'waiting'}
+          <p>On your phone, open <b>WhatsApp → Settings → Linked devices → Link a device</b> and scan this code. It refreshes on its own.</p>
+          {#if ls === 'code'}<img class="tgqr" src="/api/whatsapp/qr.png?v={wa.link.version}" alt="WhatsApp link QR code" />{:else}<p class="muted">Getting a code…</p>{/if}
+          {#if wa.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{wa.link.pair_code}</b></p>{/if}
+        {:else if ls === 'linked'}
+          <p class="st"><span class="dot on"></span>Linked. Connecting and loading your groups…</p>
+        {:else}
+          <p>Link your WhatsApp account, the same way you'd link WhatsApp Web. Townsquare then posts as you to the groups, channels and Status you choose.</p>
+          <div class="row">
+            <button class="btn pri" onclick={waLink} disabled={waBusy}>{waBusy ? 'Starting…' : 'Link WhatsApp'}</button>
+            <input class="inp" bind:value={waPhone} placeholder="Phone number (optional)" style="max-width:220px" aria-label="Phone number with country code, for a code instead of a QR" />
+            <span class="muted">Add your number with country code to also get a code you can type in.</span>
+          </div>
+          {#if wa.link?.state === 'error'}<p class="err">{wa.link.message}</p>{/if}
+        {/if}
+      {:else}
+        <p class="st"><span class="dot" class:on={app.connected}></span>{app.connected ? 'Connected' : 'Not connected'} {#if app.phone}as +{app.phone}{/if} · linked device “Townsquare” · sent today: {app.sentToday}
+          {#if wa?.linked && !app.demo}
+            <span style="flex:1"></span>
+            {#if waSure}<button class="btn danger sm" onclick={waLogout}>Unlink now</button><button class="btn sm" onclick={() => (waSure = false)}>Keep</button>
+            {:else}<button class="btn sm" onclick={() => (waSure = true)}>Unlink</button>{/if}
+          {/if}
+        </p>
+      {/if}
+
+      <h3>Townsquare</h3>
+      <p class="st">Version {upd?.current || app.version || 'dev'}
+        {#if upd && !upd.dev && !app.demo && (upd.staged || upd.available || (upd.checked_at && !upd.error))}
+          · {#if upd.staged}<b>{upd.staged}</b> is downloaded and starts soon{:else if upd.available}<b>{upd.latest}</b> is available{#if upd.notes} (<a href={upd.notes} target="_blank" rel="noreferrer">what's new</a>){/if}{:else}up to date{/if}
+        {:else if upd?.dev && upd.latest && upd.available}
+          · release {upd.latest} is out (this copy is built from source)
+        {/if}
+        · <a href="/api/v1/docs" target="_blank" rel="noreferrer">API docs</a>
+      </p>
+      {#if upd?.error}<p class="err">Couldn't check for updates: {upd.error}</p>{/if}
+      {#if upd && !app.demo}
+        <div class="row">
+          <button class="btn" onclick={checkUpd} disabled={!!updBusy}>{updBusy === 'check' ? 'Checking…' : 'Check for updates'}</button>
+          {#if !upd.dev && (upd.available || upd.staged)}
+            {#if updBusy === 'busy'}<button class="btn pri" onclick={() => installUpd(true)}>Update anyway</button>
+            {:else}<button class="btn pri" onclick={() => installUpd()} disabled={!!updBusy}>{updBusy === 'install' ? 'Updating…' : 'Update now'}</button>{/if}
+          {/if}
+          {#if !upd.dev}<label class="ck"><input type="checkbox" checked={upd.auto} onchange={(e) => setAutoUpd(e.target.checked)} /> Install updates automatically</label>{/if}
+          {#if auto?.supported}<label class="ck"><input type="checkbox" checked={auto.enabled} onchange={(e) => setLogin(e.target.checked)} /> Start when I log in</label>{/if}
+          {#if auto?.app_mode}<span style="flex:1"></span><button class="btn" onclick={quitApp}>Quit Townsquare</button>{/if}
+        </div>
+        <p class="muted">Automatic updates are checked every 6 hours, signed and verified, and installed only when no post is due within 15 minutes.{#if upd.dev} This copy was built from source, so update it with git pull and a rebuild.{/if}</p>
+      {/if}
 
       <h3>Safe mode</h3>
       <div class="safe" class:on={app.settings.safe_mode === '1'}>
@@ -240,7 +340,12 @@
       {#if !tg}
         <p class="muted">Loading…</p>
       {:else if !tg.configured}
-        <p>Telegram isn't set up on this server yet. It needs an app registration from <a href="https://my.telegram.org" target="_blank" rel="noreferrer">my.telegram.org</a> (API development tools), saved as <code>telegram.app</code> in the data folder (line 1: api_id, line 2: api_hash). Then restart Townsquare.</p>
+        <p>Telegram needs a free app ID. Sign in at <a href="https://my.telegram.org" target="_blank" rel="noreferrer">my.telegram.org</a>, open <b>API development tools</b>, create an app (any name), and copy the two values here.</p>
+        <div class="row">
+          <input class="inp" bind:value={tgApp.api_id} placeholder="api_id (a number)" inputmode="numeric" style="max-width:180px" aria-label="api_id" />
+          <input class="inp" bind:value={tgApp.api_hash} placeholder="api_hash" style="max-width:300px" aria-label="api_hash" />
+          <button class="btn pri" onclick={tgSaveApp} disabled={tgBusy || !tgApp.api_id || !tgApp.api_hash}>Save</button>
+        </div>
       {:else if tg.status === 'ready'}
         <p class="st"><span class="dot on"></span>Logged in as <b>{tg.user}</b>{tg.username ? ` (@${tg.username})` : ''} · {tg.chats} chats · {tg.allowlisted} allowlisted</p>
         <p class="muted">Posts go out as you in groups, and as the channel in channels. New Telegram chats start off the allowlist; allow them in Groups &amp; safety. Saved Messages is your own chat, safe for tests.</p>

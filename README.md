@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="#try-the-demo">Try the demo</a> ·
+  <a href="https://github.com/nerveband/townsquare/releases/latest">Download</a> ·
   <a href="#get-started-in-5-minutes">Get started</a> ·
   <a href="#what-you-can-do">Features</a> ·
   <a href="#questions">Questions</a> ·
@@ -86,60 +86,57 @@ Everything works on phones and tablets too.
 - **For AI assistants and scripts:** everything you can do in the app also works through a
   simple web API.
 
-## Try the demo
-
-Download Townsquare (see step 2 below), then run:
-
-```sh
-./townsquare serve --demo
-```
-
-Open **http://127.0.0.1:8890**. You'll see sample groups and posts, like the pictures above.
-The demo never connects to WhatsApp or Telegram, so nothing can be sent.
-
 ## Get started in 5 minutes
 
-**1. Install ffmpeg.** Townsquare uses it to get videos and voice notes ready to send.
+**1. Download Townsquare** from the [latest release](https://github.com/nerveband/townsquare/releases/latest):
+
+| Your computer | Download | Then |
+|---|---|---|
+| Mac (Apple chip or Intel) | `Townsquare-…-mac.dmg` | Drag Townsquare to Applications and open it. The first time, macOS may say it can't check the app: open **System Settings → Privacy & Security** and click **Open Anyway**. |
+| Windows | `townsquare-…-windows-amd64.exe` | Double-click it. If Windows shows "Windows protected your PC", click **More info → Run anyway**. Keep the black window open while Townsquare runs. |
+| Ubuntu, Debian, Raspberry Pi | `townsquare_…_amd64.deb` (PC), `arm64.deb` (Pi 4 or 5, 64-bit), `armhf.deb` (older Pi) | `sudo apt install ./townsquare_*.deb`, then run `townsquare` |
+
+Townsquare opens in your browser at **http://127.0.0.1:8890**, already signed in.
+
+**2. Link WhatsApp.** Click **Link now**. On your phone, go to **WhatsApp → Settings → Linked
+devices → Link a device** and scan the code. Your groups and channels show up in a few seconds.
+
+**3. Add Telegram (optional).** Go to **Settings → Telegram**. Follow the link to
+[my.telegram.org](https://my.telegram.org) to get a free app ID, paste it in, and scan the QR code
+from **Telegram → Settings → Devices → Link Desktop Device**.
+
+**4. Pick where posts may go.** Townsquare starts in safe mode. In **Settings → Groups & safety**,
+check **Allow** next to each group you want to post to. That's it: write your first post.
+
+**Keep it running.** Townsquare only sends while it's running, so use a computer that stays on.
+In **Settings → General**, check **Start when I log in**.
+
+**Videos and voice notes** need [ffmpeg](https://ffmpeg.org/download.html). On a Mac:
+`brew install ffmpeg`. On Linux: `sudo apt install ffmpeg`.
+
+### Updates happen on their own
+
+Townsquare checks for a new version every 6 hours. It downloads it, checks that it's really from
+us (every release is signed), and switches over when no post is due in the next 15 minutes.
+You can also click **Check for updates** in Settings, or run `townsquare update`. Don't want
+automatic updates? Uncheck **Install updates automatically**.
+
+### Try the demo first
+
+Want to look around before linking anything? Run Townsquare with sample groups and posts, like
+the pictures above. It never connects to WhatsApp or Telegram, so nothing can be sent:
 
 ```sh
-brew install ffmpeg        # Mac (needs Homebrew: https://brew.sh)
+townsquare serve --demo          # Mac app: /Applications/Townsquare.app/Contents/MacOS/townsquare-server serve --demo
 ```
 
-**2. Download Townsquare** from the [Releases page](https://github.com/nerveband/townsquare/releases).
-Pick `darwin-arm64` for a Mac with an Apple chip, or `linux-amd64` for Linux. Rename the file to
-`townsquare`, then:
+### Prefer the command line?
 
-```sh
-chmod +x townsquare
-xattr -d com.apple.quarantine townsquare   # Mac only, if it says it can't be opened
-```
-
-**3. Link WhatsApp.**
-
-```sh
-./townsquare pair
-```
-
-Open the link it prints. On your phone, go to **WhatsApp → Settings → Linked devices → Link a
-device** and scan the code.
-
-**4. Start it.**
-
-```sh
-./townsquare serve
-```
-
-Open **http://127.0.0.1:8890**. The first time, click **Send link to my WhatsApp**, then open
-the link from your "Message yourself" chat on the same device. That's it.
-
-**5. Add Telegram (optional).** Get an app ID and hash at [my.telegram.org](https://my.telegram.org)
-(API development tools). Save them in a file named `telegram.app` in `~/.townsquare` (ID on
-line 1, hash on line 2), restart Townsquare, then go to **Settings → Telegram** and scan the
-QR code from **Telegram → Settings → Devices → Link Desktop Device**.
-
-**Keep it running.** Townsquare only sends while it's running. Leave the window open on a
-computer that stays on. On a Mac, if you built it from this repository, `scripts/service.sh install`
-makes it start by itself and restart if it stops.
+Every download also comes as a plain program (`townsquare-…-linux-arm64` and so on). Run
+`townsquare help` to see the commands: `pair` links WhatsApp in the terminal, `serve` runs the
+server, `login-link` prints a sign-in link, and `update` updates it. On Linux,
+`systemctl --user enable --now townsquare` keeps it running in the background (on a Pi without a
+screen, also run `sudo loginctl enable-linger $USER`).
 
 ### Open it from your phone
 
@@ -185,3 +182,9 @@ the API. Changes are listed in [CHANGELOG.md](CHANGELOG.md). Useful commands: `m
 
 Built with Go, [whatsmeow](https://github.com/tulir/whatsmeow), [gotd](https://github.com/gotd/td),
 SQLite and Svelte. Not affiliated with WhatsApp, Meta or Telegram.
+
+## License
+
+Townsquare is free software under the [GNU AGPL v3](LICENSE). You can use it, change it and share
+it. If you change it and let other people use your version (including over the internet), you must
+share your changes under the same license.

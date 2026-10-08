@@ -40,23 +40,44 @@ type PairOptions struct {
 	Phone  string // optional phone number (digits, with country code) for a pairing code instead of QR
 }
 
-// Pair links this device to a phone. It serves a live QR page, prints the QR to the
-// terminal, and optionally requests an 8-character pairing code for phone-number linking.
-func Pair(ctx context.Context, cli *whatsmeow.Client, opt PairOptions) error {
+// LinkState is what a pairing screen shows.
+type LinkState struct {
+	State    string `json:"state"` // idle, waiting, code, linked, error
+	PairCode string `json:"pair_code,omitempty"`
+	Expires  int64  `json:"expires,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Version  int    `json:"version"`
+}
+
+// Linker links this device to a phone: it keeps fresh QR codes coming (and an
+// optional phone-number pairing code) until the phone links or ctx ends.
+type Linker struct {
+	st     *pairState
+	linked chan struct{}
+	done   chan struct{}
+}
+
+// StartLink begins linking. Quiet suppresses terminal output (the web app uses it).
+func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet bool) (*Linker, error) {
 	if cli.Store.ID != nil {
-		return fmt.Errorf("already paired as %s; delete the data dir to re-pair", cli.Store.ID)
+		return nil, fmt.Errorf("already linked as %s", cli.Store.ID.User)
 	}
-	st := &pairState{State: "waiting"}
-	linked := make(chan struct{}, 1)
-	cli.AddEventHandler(func(evt any) {
+	l := &Linker{st: &pairState{State: "waiting"}, linked: make(chan struct{}, 1), done: make(chan struct{})}
+	st := l.st
+	say := func(a ...any) {
+		if !quiet {
+			fmt.Println(a...)
+		}
+	}
+	hid := cli.AddEventHandler(func(evt any) {
 		switch e := evt.(type) {
 		case *events.PairSuccess:
-			st.set(func(p *pairState) { p.State = "linked"; p.Message = "Linked as " + e.ID.User })
-			fmt.Println("✓ Linked as", e.ID.String())
+			st.set(func(p *pairState) { p.State = "linked"; p.Message = "Linked as +" + e.ID.User })
+			say("✓ Linked as", e.ID.String())
 		case *events.Connected:
 			if cli.Store.ID != nil {
 				select {
-				case linked <- struct{}{}:
+				case l.linked <- struct{}{}:
 				default:
 				}
 			}
@@ -65,21 +86,11 @@ func Pair(ctx context.Context, cli *whatsmeow.Client, opt PairOptions) error {
 		}
 	})
 
-	if opt.Listen != "" {
-		token := randHex(8)
-		srv := &http.Server{Addr: opt.Listen, Handler: pairMux(st, token)}
-		go func() {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				fmt.Fprintln(os.Stderr, "pair page:", err)
-			}
-		}()
-		defer srv.Close()
-		fmt.Printf("\nOpen this page to scan the QR code:\n  http://%s/pair/%s\n\n", opt.Listen, token)
-	}
-
 	// WhatsApp hands out about six QR codes per connection. Keep reconnecting
 	// for fresh codes until the phone links or the context ends.
 	go func() {
+		defer close(l.done)
+		defer cli.RemoveEventHandler(hid)
 		for round := 0; ctx.Err() == nil && cli.Store.ID == nil; round++ {
 			qrChan, err := cli.GetQRChannel(ctx)
 			if err != nil {
@@ -90,13 +101,16 @@ func Pair(ctx context.Context, cli *whatsmeow.Client, opt PairOptions) error {
 				st.set(func(p *pairState) { p.State = "error"; p.Message = err.Error() })
 				return
 			}
-			if opt.Phone != "" && round == 0 {
-				code, err := cli.PairPhone(ctx, opt.Phone, true, whatsmeow.PairClientChrome, "Chrome (Townsquare)")
+			if phone != "" && round == 0 {
+				code, err := cli.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Townsquare)")
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "pairing code:", err)
+					st.set(func(p *pairState) { p.Message = "pairing code: " + err.Error() })
+					if !quiet {
+						fmt.Fprintln(os.Stderr, "pairing code:", err)
+					}
 				} else {
 					st.set(func(p *pairState) { p.PairCode = code })
-					fmt.Println("Pairing code:", code, "(WhatsApp > Linked devices > Link with phone number)")
+					say("Pairing code:", code, "(WhatsApp > Linked devices > Link with phone number)")
 				}
 			}
 			for item := range qrChan {
@@ -104,14 +118,14 @@ func Pair(ctx context.Context, cli *whatsmeow.Client, opt PairOptions) error {
 				case whatsmeow.QRChannelEventCode:
 					code, exp := item.Code, time.Now().Add(item.Timeout).Unix()
 					st.set(func(p *pairState) { p.State = "code"; p.QR = code; p.Expires = exp })
-					if round == 0 {
+					if round == 0 && !quiet {
 						qrterminal.GenerateHalfBlock(code, qrterminal.L, os.Stdout)
 					}
-					fmt.Printf("QR code ready (refreshes in %s)\n", item.Timeout)
+					say(fmt.Sprintf("QR code ready (refreshes in %s)", item.Timeout))
 				case "success":
 					return
 				case "timeout":
-					fmt.Println("QR codes expired, getting new ones...")
+					say("QR codes expired, getting new ones...")
 				default:
 					msg := item.Event
 					if item.Error != nil {
@@ -130,12 +144,60 @@ func Pair(ctx context.Context, cli *whatsmeow.Client, opt PairOptions) error {
 				return
 			}
 			cli.Disconnect()
-			time.Sleep(2 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
 		}
 	}()
+	return l, nil
+}
 
+// State returns the current pairing state.
+func (l *Linker) State() LinkState {
+	l.st.mu.Lock()
+	defer l.st.mu.Unlock()
+	return LinkState{State: l.st.State, PairCode: l.st.PairCode, Expires: l.st.Expires, Message: l.st.Message, Version: l.st.Version}
+}
+
+// QR returns the current QR code text ("" when none).
+func (l *Linker) QR() string {
+	l.st.mu.Lock()
+	defer l.st.mu.Unlock()
+	return l.st.QR
+}
+
+// Linked is closed-or-signalled once the phone has linked and the connection is up.
+func (l *Linker) Linked() <-chan struct{} { return l.linked }
+
+// Done is closed when the QR loop stops (linked, failed or cancelled).
+func (l *Linker) Done() <-chan struct{} { return l.done }
+
+// Pair links this device to a phone from the command line. It serves a live QR
+// page, prints the QR to the terminal, and optionally requests an 8-character
+// pairing code for phone-number linking.
+func Pair(ctx context.Context, cli *whatsmeow.Client, opt PairOptions) error {
+	if cli.Store.ID != nil {
+		return fmt.Errorf("already paired as %s; delete the data dir to re-pair", cli.Store.ID)
+	}
+	l, err := StartLink(ctx, cli, opt.Phone, false)
+	if err != nil {
+		return err
+	}
+	if opt.Listen != "" {
+		token := randHex(8)
+		srv := &http.Server{Addr: opt.Listen, Handler: pairMux(l.st, token)}
+		go func() {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				fmt.Fprintln(os.Stderr, "pair page:", err)
+			}
+		}()
+		defer srv.Close()
+		fmt.Printf("\nOpen this page to scan the QR code:\n  http://%s/pair/%s\n\n", opt.Listen, token)
+	}
 	select {
-	case <-linked:
+	case <-l.Linked():
 		// Give the phone a moment to deliver app-state keys (contacts, needed for Status).
 		fmt.Println("Connected. Finishing initial setup (about 20s)...")
 		time.Sleep(20 * time.Second)

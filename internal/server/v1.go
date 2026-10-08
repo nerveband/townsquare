@@ -44,6 +44,17 @@ func (s *Server) v1Mux() *http.ServeMux {
 	})
 
 	m.HandleFunc("GET /api/v1/status", s.v1Status)
+	m.HandleFunc("GET /api/v1/update", s.updateState)
+	m.HandleFunc("POST /api/v1/update/check", s.updateCheck)
+	m.HandleFunc("POST /api/v1/update/install", s.updateInstall)
+	m.HandleFunc("GET /api/v1/autostart", s.autostartState)
+	m.HandleFunc("PUT /api/v1/autostart", s.setAutostart)
+	m.HandleFunc("POST /api/v1/quit", s.quit)
+	m.HandleFunc("GET /api/v1/whatsapp", s.whatsappState)
+	m.HandleFunc("POST /api/v1/whatsapp/link", s.whatsappLink)
+	m.HandleFunc("GET /api/v1/whatsapp/qr.png", s.whatsappQR)
+	m.HandleFunc("POST /api/v1/whatsapp/logout", s.whatsappLogout)
+	m.HandleFunc("POST /api/v1/telegram/app", s.telegramApp)
 	m.HandleFunc("GET /api/v1/settings", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.DB.Settings(r.Context())) })
 	m.HandleFunc("PATCH /api/v1/settings", s.saveSettings)
 

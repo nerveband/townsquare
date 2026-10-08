@@ -128,3 +128,25 @@ Setting `stats_people` ("0" default, "1" on, admin) keeps names for reads, react
 replies so `GET /stats/posts/{id}` can list them. Names are deleted after 30 days and right away
 when it is turned off. Counts stay either way.
 
+
+## Setup, updates and running
+
+Admin keys can do the setup that used to need a terminal:
+
+```
+GET  /api/v1/whatsapp                         ({linked, connected, number, link: {state, pair_code}})
+POST /api/v1/whatsapp/link  {"phone": "15551234567"}   (phone optional: adds a typed pairing code)
+GET  /api/v1/whatsapp/qr.png                  (scan in WhatsApp: Settings > Linked devices > Link a device)
+POST /api/v1/whatsapp/logout                  (unlinks this device)
+POST /api/v1/telegram/app   {"api_id": "...", "api_hash": "..."}   (from my.telegram.org; then /telegram/login)
+```
+
+Townsquare updates itself from signed GitHub releases. `GET /api/v1/update` shows the current
+and newest version; `POST /api/v1/update/check` checks now. With the `auto_update` setting on
+(the default) it checks every 6 hours, downloads the release, verifies its Ed25519 signature
+and SHA-256, and restarts into it when no post is due within 15 minutes.
+`POST /api/v1/update/install` (admin) does it now; it answers 409 `busy` near a send unless you
+pass `{"force": true}`. Builds from source report updates but never install them.
+
+`GET/PUT /api/v1/autostart {"enabled": true}` (admin) turns "start when I log in" on or off.
+`POST /api/v1/quit` (admin) stops the server.

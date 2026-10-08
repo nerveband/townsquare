@@ -65,6 +65,7 @@ var defaults = map[string]string{
 	"grace_min":      "15",
 	"tg_queue_hours": "0",
 	"stats_people":   "0",
+	"auto_update":    "1",
 }
 
 var defaultTags = [][2]string{

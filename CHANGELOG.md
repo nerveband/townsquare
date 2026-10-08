@@ -6,7 +6,26 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.6.0] - 2026-10-08
+
 ### Added
+- **Downloads for every computer:** a Mac app (`.dmg`, Apple silicon and Intel), a Windows
+  `.exe`, `.deb` packages for Debian, Ubuntu and Raspberry Pi OS (amd64, arm64, armhf), and plain
+  binaries. Opening the app starts Townsquare and opens it in the browser, already signed in;
+  opening it again just opens the browser.
+- **Automatic updates** for every kind of install, including the command line. Every 6 hours
+  Townsquare checks the newest GitHub release, verifies its Ed25519 signature and SHA-256,
+  downloads it to `~/.townsquare/bin`, and restarts into it when no post is due within 15
+  minutes. Settings → General shows the version with **Check for updates**, **Update now** and
+  **Install updates automatically**; `townsquare update [--check]` does the same from a terminal.
+  Builds from source report updates but never install them.
+- **Setup in the browser:** link WhatsApp by QR code (or a typed code) from Settings, unlink it,
+  and add the Telegram app id without editing files or restarting. A welcome banner points new
+  users there.
+- **Start when I log in** (Settings → General): a LaunchAgent on macOS, a systemd user service on
+  Linux, a Run entry on Windows. **Quit Townsquare** when it was opened as an app.
+- `townsquare help`, and running `townsquare` with no command opens the app.
+- Licensed under the GNU AGPL v3.
 - Engagement stats (new Stats view, key S). Townsquare now counts WhatsApp reads, deliveries,
   voice note plays, reactions and replies as they happen, plus WhatsApp channel views and Telegram
   views, shares, replies, reactions and story views. The board shows reach, read rate, read speed
@@ -35,30 +54,6 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
   "TG bot" chat.
 - Sign-in links can go to Telegram Saved Messages as well as WhatsApp, and the sign-in screen
   explains where the link arrives.
-
-### Changed
-- Reminders to yourself ("Message yourself", Telegram Saved Messages) ignore quiet hours and
-  send without the pause between messages. Before, a reminder to yourself at night was held back.
-- App colors now match the logo: sky blue for actions, grass green for "connected", and the flag
-  yellow for today. WhatsApp green stays only in the WhatsApp preview and platform badges.
-- AGENTS.md slimmed to the always-needed rules (68 lines); deprecation and release detail moved to
-  `docs/`. CLAUDE.md imports AGENTS.md. The old `design/` mock was removed.
-- Deploy settings for a specific host now live in an untracked `.deploy.env`.
-- README rewritten in plain language with a new banner, demo screenshots for desktop and phone,
-  and a short tour GIF.
-- WhatsApp channel view counts are now read from the channel's message list, because the
-  "updates" query kept timing out. The old query is still tried if the list fails.
-
-### Changed (breaking, renamed)
-- **WA Cal is now Townsquare**: "One calendar to schedule all your community posts."
-  - Repo `github.com/nerveband/townsquare`, Go module path, command `townsquare` (was `wacal`).
-  - Data folder `~/.townsquare` (deploy moves `~/.wacal` and leaves a symlink).
-  - Tailnet machine name `townsquare` (was `wa-cal`).
-  - New API keys start with `tsq_` (old `wacal_` keys keep working).
-  - Session cookie renamed, so browsers sign in once more. Header `X-Townsquare-Version`.
-  - The linked device shows as "Townsquare" on new pairings.
-
-### Added
 - Demo mode: `wacal serve --demo` opens the app with sample groups and posts in a separate
   data folder, never connects to WhatsApp and never sends.
 - Simpler README with screenshots of every view.
@@ -77,10 +72,30 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
   a wide mode with the preview beside the editor.
 
 ### Changed
+- Reminders to yourself ("Message yourself", Telegram Saved Messages) ignore quiet hours and
+  send without the pause between messages. Before, a reminder to yourself at night was held back.
+- App colors now match the logo: sky blue for actions, grass green for "connected", and the flag
+  yellow for today. WhatsApp green stays only in the WhatsApp preview and platform badges.
+- AGENTS.md slimmed to the always-needed rules (68 lines); deprecation and release detail moved to
+  `docs/`. CLAUDE.md imports AGENTS.md. The old `design/` mock was removed.
+- Deploy settings for a specific host now live in an untracked `.deploy.env`.
+- README rewritten in plain language with a new banner, demo screenshots for desktop and phone,
+  and a short tour GIF.
+- WhatsApp channel view counts are now read from the channel's message list, because the
+  "updates" query kept timing out. The old query is still tried if the list fails.
 - Tablet and phone layouts reworked: two-row top bar, floating new-post button below 1000px,
   scrollable filter chips, sticky hours in the Time view, and a bottom sheet on touch screens.
 - A send due inside quiet hours is now recorded as "held" with the reason right away, instead
   of waiting and then being marked missed.
+
+### Changed (breaking, renamed)
+- **WA Cal is now Townsquare**: "One calendar to schedule all your community posts."
+  - Repo `github.com/nerveband/townsquare`, Go module path, command `townsquare` (was `wacal`).
+  - Data folder `~/.townsquare` (deploy moves `~/.wacal` and leaves a symlink).
+  - Tailnet machine name `townsquare` (was `wa-cal`).
+  - New API keys start with `tsq_` (old `wacal_` keys keep working).
+  - Session cookie renamed, so browsers sign in once more. Header `X-Townsquare-Version`.
+  - The linked device shows as "Townsquare" on new pairings.
 
 ### Fixed
 - The Telegram bot no longer stays off for the session if Telegram is slow to answer at startup.
@@ -94,6 +109,11 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
   JavaScript. Sequences are repaired and affected history entries renumbered on startup.
 
 ### API changes
+- New `GET /api/v1/update`, `POST /update/check`, `POST /update/install` (admin, `force`).
+- New `GET/PUT /api/v1/autostart` (PUT admin) and `POST /api/v1/quit` (admin).
+- New `GET /api/v1/whatsapp`, `POST /whatsapp/link`, `GET /whatsapp/qr.png`, `POST /whatsapp/logout`
+  (admin except GET), and `POST /api/v1/telegram/app` (admin).
+- New setting `auto_update` ("1" default).
 - `GET /api/v1/status` includes `demo`.
 - New `/api/v1/telegram` (status), `/login`, `/qr.png`, `/password`, `/logout` (admin) and `/refresh`.
 - Targets have `platform` (`whatsapp` or `telegram`); `POST /api/v1/test-send` takes `platform`.

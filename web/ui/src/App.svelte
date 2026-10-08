@@ -87,6 +87,8 @@
 
   {#if app.demo}
     <div class="safe demo">Demo with sample data. Nothing here is real and nothing is ever sent.</div>
+  {:else if !app.phone && app.telegram !== 'ready'}
+    <div class="safe">Welcome! Link WhatsApp (or Telegram) so Townsquare can post for you. <button onclick={() => (app.showSettings = true)}>Link now</button></div>
   {:else if app.settings.safe_mode === '1'}
     <div class="safe">Safe mode is on: only allowlisted chats receive posts. Everything else is held back. <button onclick={() => (app.showSettings = true)}>Manage</button></div>
   {/if}

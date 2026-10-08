@@ -69,6 +69,11 @@ func needsAdmin(r *http.Request) bool {
 	if strings.HasPrefix(p, "/api/v1/keys") || strings.HasPrefix(p, "/api/v1/sessions") {
 		return true
 	}
+	// Updating, stopping, start at login, and linking or unlinking WhatsApp are admin-only.
+	if p == "/api/v1/update/install" || p == "/api/v1/quit" || (p == "/api/v1/autostart" && r.Method != http.MethodGet) ||
+		strings.HasPrefix(p, "/api/v1/whatsapp/") {
+		return true
+	}
 	// Logging an account in or out, or seeing its login QR, is admin-only.
 	if strings.HasPrefix(p, "/api/v1/telegram/") && p != "/api/v1/telegram/refresh" {
 		return true

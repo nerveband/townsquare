@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nerveband/townsquare/internal/store"
+	"github.com/nerveband/townsquare/internal/update"
 	"net/http/httptest"
 	"regexp"
 	"strings"
@@ -90,5 +91,41 @@ func TestStatsSummaryEmptyAndFiltered(t *testing.T) {
 	s.statsText(rec, httptest.NewRequest("GET", "/api/v1/stats/summary.txt?days=7", nil))
 	if !strings.Contains(rec.Body.String(), "last 7 days") {
 		t.Fatalf("text: %s", rec.Body.String())
+	}
+}
+
+func TestUpdateEndpoints(t *testing.T) {
+	db, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	s := &Server{DB: db, DataDir: dir, Updater: update.New(dir, "v0.5.0-23-gabc1234")}
+	rec := httptest.NewRecorder()
+	s.updateState(rec, httptest.NewRequest("GET", "/api/v1/update", nil))
+	var st map[string]any
+	if json.Unmarshal(rec.Body.Bytes(), &st) != nil || st["dev"] != true || st["auto"] != true {
+		t.Fatalf("state: %s", rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	s.updateInstall(rec, httptest.NewRequest("POST", "/api/v1/update/install", strings.NewReader(`{}`)))
+	if rec.Code != 409 || !strings.Contains(rec.Body.String(), "built_from_source") {
+		t.Fatalf("dev install: %d %s", rec.Code, rec.Body.String())
+	}
+	if b := s.busySoon(t.Context()); b != "" {
+		t.Fatalf("empty calendar busy: %q", b)
+	}
+	for _, c := range []struct {
+		method, path string
+		admin        bool
+	}{
+		{"GET", "/api/v1/update", false}, {"POST", "/api/v1/update/check", false}, {"POST", "/api/v1/update/install", true},
+		{"GET", "/api/v1/autostart", false}, {"PUT", "/api/v1/autostart", true}, {"POST", "/api/v1/quit", true},
+		{"GET", "/api/v1/whatsapp", false}, {"POST", "/api/v1/whatsapp/link", true}, {"GET", "/api/v1/whatsapp/qr.png", true},
+		{"POST", "/api/v1/telegram/app", true},
+	} {
+		if got := needsAdmin(httptest.NewRequest(c.method, c.path, nil)); got != c.admin {
+			t.Errorf("needsAdmin(%s %s) = %v", c.method, c.path, got)
+		}
 	}
 }

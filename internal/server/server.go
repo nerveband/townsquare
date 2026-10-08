@@ -25,6 +25,7 @@ import (
 	"github.com/nerveband/townsquare/internal/store"
 	"github.com/nerveband/townsquare/internal/tg"
 	"github.com/nerveband/townsquare/internal/tgbot"
+	"github.com/nerveband/townsquare/internal/update"
 	"github.com/nerveband/townsquare/internal/version"
 	"github.com/nerveband/townsquare/internal/wa"
 )
@@ -37,10 +38,16 @@ type Server struct {
 	Demo    bool       // sample data; never connects or sends
 	TG      *tg.Client // Telegram account; nil when not set up
 	Bot     *tgbot.Bot // Telegram bot; nil when not set up
+	Updater *update.Updater
+	Restart chan string // main restarts ("update") or stops ("quit") on request
+	AppMode bool        // started by opening the app; Settings offers Quit
+	Listen  string      // address the web app listens on (for start at login)
 
 	mu        sync.Mutex
 	connected bool
 	sending   string
+	linker    *wa.Linker      // WhatsApp linking in progress, from the browser
+	baseCtx   context.Context // lives as long as the server
 }
 
 func (s *Server) Handler() http.Handler {
@@ -104,6 +111,17 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/stats/badges", s.statsBadges)
 	m.HandleFunc("GET /api/stats/export.csv", s.statsExport)
 	m.HandleFunc("POST /api/stats/share", s.statsShare)
+	m.HandleFunc("GET /api/update", s.updateState)
+	m.HandleFunc("POST /api/update/check", s.updateCheck)
+	m.HandleFunc("POST /api/update/install", s.updateInstall)
+	m.HandleFunc("GET /api/autostart", s.autostartState)
+	m.HandleFunc("PUT /api/autostart", s.setAutostart)
+	m.HandleFunc("POST /api/quit", s.quit)
+	m.HandleFunc("GET /api/whatsapp", s.whatsappState)
+	m.HandleFunc("POST /api/whatsapp/link", s.whatsappLink)
+	m.HandleFunc("GET /api/whatsapp/qr.png", s.whatsappQR)
+	m.HandleFunc("POST /api/whatsapp/logout", s.whatsappLogout)
+	m.HandleFunc("POST /api/telegram/app", s.telegramApp)
 	if s.UI != nil {
 		files := http.FileServer(http.FS(s.UI))
 		m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +171,7 @@ func logRequests(h http.Handler) http.Handler {
 
 // Connect keeps the WhatsApp connection up and refreshes targets once connected.
 func (s *Server) Connect(ctx context.Context) error {
+	s.baseCtx = ctx
 	s.WA.AddEventHandler(func(evt any) {
 		switch evt.(type) {
 		case *events.Connected:
@@ -544,6 +563,7 @@ func (s *Server) saveSet(w http.ResponseWriter, r *http.Request) {
 
 var editableSettings = map[string]string{
 	"tg_queue_hours": "Telegram queue window",
+	"auto_update":    "automatic updates",
 	"stats_people":   "who read it lists",
 	"timezone":       "time zone", "safe_mode": "safe mode", "gap_min": "minimum gap", "gap_max": "maximum gap",
 	"daily_cap": "daily limit", "quiet_start": "quiet hours", "quiet_end": "quiet hours", "grace_min": "late-send grace",

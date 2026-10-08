@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -20,6 +21,7 @@ import (
 	"github.com/nerveband/townsquare/internal/store"
 	"github.com/nerveband/townsquare/internal/tg"
 	"github.com/nerveband/townsquare/internal/tgbot"
+	"github.com/nerveband/townsquare/internal/update"
 	"github.com/nerveband/townsquare/internal/version"
 	"github.com/nerveband/townsquare/internal/wa"
 	"github.com/nerveband/townsquare/web"
@@ -29,6 +31,7 @@ import (
 const usage = `townsquare: one calendar to schedule all your community posts
 
 Usage:
+  townsquare                  open the app: starts Townsquare and opens it in your browser
   townsquare serve   [--listen 100.x.y.z:8890]     web app, API and send loop
   townsquare pair    [--listen 100.x.y.z:8899] [--phone 15551234567]
   townsquare targets [--json]
@@ -39,6 +42,7 @@ Usage:
   townsquare apikey create NAME [--scope read|write|admin] | list | revoke ID
   townsquare allow [JID...]           show or extend the send allowlist (~/.townsquare/allow.txt)
   townsquare channel-create --name NAME [--desc TEXT]
+  townsquare update [--check]          download the newest release (used on the next start)
 
 Global flags (before the command):
   --data DIR   session directory (default ~/.townsquare)
@@ -51,15 +55,59 @@ func main() {
 	dataDir := global.String("data", filepath.Join(home, ".townsquare"), "session directory")
 	logLevel := global.String("log", "WARN", "log level")
 	global.Usage = func() { fmt.Fprint(os.Stderr, usage) }
-	_ = global.Parse(os.Args[1:])
-	args := global.Args()
-	if len(args) == 0 {
-		global.Usage()
-		os.Exit(2)
+	var argv []string
+	for _, a := range os.Args[1:] {
+		if !strings.HasPrefix(a, "-psn_") { // macOS Finder adds this to app launches
+			argv = append(argv, a)
+		}
 	}
+	_ = global.Parse(argv)
+	args := global.Args()
+
+	// A downloaded update, if newer, runs instead of this binary (it never returns then).
+	update.Handoff(*dataDir, version.Version)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM) // SIGTERM: launchd/systemd stop
 	defer stop()
+
+	appMode := isAppLaunch(args)
+	if appMode {
+		if running(appAddr) {
+			openSignedIn(ctx, *dataDir, appAddr)
+			return
+		}
+		args = []string{"serve", "--listen", appAddr}
+		if runtime.GOOS == "windows" {
+			fmt.Println("Townsquare is starting. Keep this window open; close it to stop Townsquare.")
+		}
+	}
+	switch args[0] {
+	case "help", "-h", "--help":
+		fmt.Print(usage)
+		return
+	case "version":
+		fmt.Println("townsquare", version.String())
+		return
+	case "update":
+		fs := flag.NewFlagSet("update", flag.ExitOnError)
+		only := fs.Bool("check", false, "only check, don't download")
+		_ = fs.Parse(args[1:])
+		u := update.New(*dataDir, version.Version)
+		m, err := u.Check(ctx)
+		check(err)
+		if !update.Newer(m.Version, version.Version) {
+			fmt.Println("Townsquare", version.Version, "is up to date (newest release:", m.Version+")")
+			return
+		}
+		if *only {
+			fmt.Println("Townsquare", m.Version, "is available (you have", version.Version+"). Notes:", m.Notes)
+			return
+		}
+		v, err := u.Download(ctx, m)
+		check(err)
+		fmt.Println("✓ downloaded Townsquare", v+". It's used from the next start; a running Townsquare switches to it on its own when no post is due.")
+		return
+	}
 
 	cli, err := wa.Open(ctx, *dataDir, *logLevel)
 	check(err)
@@ -132,10 +180,6 @@ func main() {
 		// Stay connected briefly so retry receipts from recipients can be answered.
 		time.Sleep(3 * time.Second)
 
-	case "version":
-		fmt.Println("townsquare", version.String())
-		return
-
 	case "serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
 		listen := fs.String("listen", "127.0.0.1:8890", "address for the web app and API (empty to disable)")
@@ -150,7 +194,14 @@ func main() {
 		}
 		db, err := store.Open(*dataDir)
 		check(err)
-		srv := &server.Server{DB: db, WA: cli, DataDir: *dataDir, UI: web.FS(), Demo: *demo}
+		ctx, cancelServe := context.WithCancel(ctx)
+		defer cancelServe()
+		restart := make(chan string, 1)
+		srv := &server.Server{DB: db, WA: cli, DataDir: *dataDir, UI: web.FS(), Demo: *demo, Restart: restart, AppMode: appMode, Listen: *listen}
+		if !*demo {
+			srv.Updater = update.New(*dataDir, version.Version)
+			go srv.RunUpdates(ctx)
+		}
 		if *demo {
 			check(srv.SeedDemo(ctx))
 			fmt.Println("Demo mode: sample data in", *dataDir, "· nothing is ever sent")
@@ -183,6 +234,14 @@ func main() {
 			go func() { <-ctx.Done(); _ = hs.Close() }()
 			fmt.Printf("Townsquare is running at http://%s\n", *listen)
 			go func() { errs <- hs.ListenAndServe() }()
+			if appMode {
+				go func() {
+					for i := 0; i < 50 && !running(*listen); i++ {
+						time.Sleep(200 * time.Millisecond)
+					}
+					openSignedIn(ctx, *dataDir, *listen)
+				}()
+			}
 		}
 		select {
 		case err := <-errs:
@@ -190,6 +249,20 @@ func main() {
 				check(err)
 			}
 		case <-ctx.Done():
+		case why := <-restart:
+			// Stop cleanly: listeners, send loops, WhatsApp, then the database.
+			cancelServe()
+			time.Sleep(time.Second)
+			cli.Disconnect()
+			_ = db.Close()
+			if why == "update" {
+				fmt.Println("Restarting into the update...")
+				if err := update.Restart(*dataDir, version.Version); err != nil {
+					fmt.Fprintln(os.Stderr, "update:", err)
+					os.Exit(1) // a service manager starts it again (and Handoff picks the update)
+				}
+			}
+			fmt.Println("Townsquare stopped.")
 		}
 
 	case "login-link":
