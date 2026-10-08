@@ -73,7 +73,7 @@ rm -f bin/townsquare bin/townsquare.new
 rm -rf "$DATA/bin"
 
 for i in $(seq 1 30); do
-  got="$(curl -s -m 3 -D - -o /dev/null "http://$LISTEN/api/auth/status" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-townsquare-version"{print $2}')"
+  got="$(curl -s -m 3 -D - -o /dev/null "http://$LISTEN/api/auth/status" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="x-townsquare-version"{print $2}' || true)"
   [ "$got" = "$V" ] && { echo "✓ running $V from $APP (http://$LISTEN${TSNAME:+, tailnet name $TSNAME})"; exit 0; }
   sleep 1
 done
