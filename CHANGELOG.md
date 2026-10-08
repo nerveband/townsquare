@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.7.1] - 2026-10-08
+
 ### Fixed
 - The Stats page could stay on "Loading..." when no post had any reactions yet. Lists in the
   stats answers are now always lists, and a test checks every answer on an empty database too.
