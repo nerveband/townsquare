@@ -65,8 +65,8 @@ type State struct {
 	Current   string `json:"current"`
 	Latest    string `json:"latest,omitempty"`
 	Notes     string `json:"notes,omitempty"`
-	Available bool   `json:"available"`          // a newer release exists
-	Staged    string `json:"staged,omitempty"`   // downloaded, used after a restart
+	Available bool   `json:"available"`        // a newer release exists
+	Staged    string `json:"staged,omitempty"` // downloaded, used after a restart
 	CheckedAt int64  `json:"checked_at,omitempty"`
 	Error     string `json:"error,omitempty"`
 	Platform  string `json:"platform"`

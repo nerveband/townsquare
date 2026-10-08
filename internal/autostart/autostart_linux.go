@@ -25,7 +25,9 @@ func systemctl(args ...string) error {
 func Supported() bool { _, err := exec.LookPath("systemctl"); return err == nil }
 
 // Enabled reports whether Townsquare starts at login.
-func Enabled() bool { return exec.Command("systemctl", "--user", "is-enabled", "--quiet", "townsquare").Run() == nil }
+func Enabled() bool {
+	return exec.Command("systemctl", "--user", "is-enabled", "--quiet", "townsquare").Run() == nil
+}
 
 // Enable writes (or reuses) the systemd user service and enables it for the next login.
 func Enable(dataDir, listen string) error {
