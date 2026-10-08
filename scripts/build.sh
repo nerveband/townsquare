@@ -9,6 +9,10 @@ COMMIT="$(git rev-parse --short HEAD)"
 DATE="$(date -u +%Y-%m-%d)"
 PKG=github.com/nerveband/townsquare/internal/version
 LDFLAGS="-s -w -X $PKG.Version=$VERSION -X $PKG.Commit=$COMMIT -X $PKG.Date=$DATE"
+# Release builds bake in the shared Telegram app id ("ID:HASH", see internal/tg/app.go).
+if [ -n "${TOWNSQUARE_TG_APP:-}" ]; then
+  LDFLAGS="$LDFLAGS -X github.com/nerveband/townsquare/internal/tg.builtinApp=$TOWNSQUARE_TG_APP"
+fi
 if [ -n "$TARGET" ]; then
   export GOOS="${TARGET%/*}" GOARCH="${TARGET#*/}" CGO_ENABLED=0
 fi

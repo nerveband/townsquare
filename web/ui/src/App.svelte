@@ -1,4 +1,5 @@
 <script>
+  import UpdatePill from './lib/UpdatePill.svelte'
   import { onMount } from 'svelte'
   import { app, refresh, loadTargets, loadSends, setView, shift, goToday, undo, redo, tz, defaultTZ, today, newPostAt } from './lib/state.svelte.js'
   import { mondayOf, addDays, rangeLabel, monthName, tzShort, ruleLabel } from './lib/time.js'
@@ -79,6 +80,7 @@
       <span class="sl">Search posts</span><kbd>/</kbd>
     </button>
     {#if app.sending}<span class="sending">Sending: {app.sending}</span>{/if}
+    <UpdatePill />
     <TZSlider />
     <button class="ib" class:on={app.showHistory} onclick={() => (app.showHistory = !app.showHistory)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8" /><path d="M3 3v5h5M12 7v5l3 3" /></svg><span class="hlbl">History</span></button>
     <button class="ib" onclick={() => (app.showSettings = true)} aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" /></svg></button>
@@ -175,9 +177,11 @@
   .search .sl { flex: 1; text-align: left }
   .search kbd { font: 500 10.5px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: #fff }
   .bar :global(.ib), .bar .btn, .logo, .range { white-space: nowrap }
-  @media (max-width: 1280px) {
+  @media (max-width: 1440px) {
     .search { min-width: 0; padding: 6px } .search .sl, .search kbd { display: none }
     .hlbl { display: none }
+  }
+  @media (max-width: 1280px) {
     .logo { margin-right: 6px }
   }
   .menu { display: none; position: relative }

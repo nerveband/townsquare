@@ -146,7 +146,14 @@
 
   // Telegram app id
   let tgApp = $state({ api_id: '', api_hash: '' })
-  async function tgSaveApp() { tgBusy = true; try { tg = await api('POST', '/api/telegram/app', tgApp); loadTG() } catch (e) { toast(e.message) } finally { tgBusy = false } }
+  let tgOwn = $state(false)
+  async function tgAppDone(r) {
+    if (r?.restarting) { toast('Restarting Telegram with the new app ID…'); tg = { ...tg, status: 'starting' }; setTimeout(loadTG, 5000) }
+    else { tg = r; loadTG() }
+    tgOwn = false
+  }
+  async function tgSaveApp() { tgBusy = true; try { await tgAppDone(await api('POST', '/api/telegram/app', tgApp)) } catch (e) { toast(e.message) } finally { tgBusy = false } }
+  async function tgResetApp() { tgBusy = true; try { await tgAppDone(await api('DELETE', '/api/telegram/app')) } catch (e) { toast(e.message) } finally { tgBusy = false } }
 
   // API keys
   let keys = $state([])
@@ -369,6 +376,19 @@
         <div class="row"><button class="btn pri" onclick={tgLogin} disabled={tgBusy || tg.status === 'starting'}>{tg.status === 'starting' ? 'Connecting…' : 'Log in with QR code'}</button></div>
         {#if tg.error}<p class="err">{tg.error}</p>{/if}
       {/if}
+      {#if tg?.configured && tg.status !== 'ready'}
+        <p class="muted">Uses {tg.app_source === 'own' ? 'your own Telegram app ID' : 'Townsquare’s shared Telegram app ID'}.
+          {#if tg.app_source === 'own'}<button class="lnk" onclick={tgResetApp} disabled={tgBusy}>Use the shared one</button>
+          {:else}<button class="lnk" onclick={() => (tgOwn = !tgOwn)}>Use your own</button>{/if}</p>
+        {#if tgOwn}
+          <p class="muted">Get one at <a href="https://my.telegram.org" target="_blank" rel="noreferrer">my.telegram.org</a> → API development tools.</p>
+          <div class="row">
+            <input class="inp" bind:value={tgApp.api_id} placeholder="api_id (a number)" inputmode="numeric" style="max-width:180px" aria-label="api_id" />
+            <input class="inp" bind:value={tgApp.api_hash} placeholder="api_hash" style="max-width:300px" aria-label="api_hash" />
+            <button class="btn pri" onclick={tgSaveApp} disabled={tgBusy || !tgApp.api_id || !tgApp.api_hash}>Save</button>
+          </div>
+        {/if}
+      {/if}
       {#if tg?.bot}
         <h3>Telegram bot</h3>
         <p class="st"><span class="dot on"></span><b>{tg.bot.name}</b> (@{tg.bot.username}) · {tg.bot.chats} chats</p>
@@ -479,6 +499,7 @@
   .scope { font: 500 11px var(--mono); background: #E3F2EE; color: var(--t800); border-radius: 4px; padding: 1px 6px }
   .key.revoked { opacity: .5 }
   .tgqr { width: 240px; height: 240px; image-rendering: pixelated; border-radius: 10px; border: 1px solid var(--line); background: #fff; padding: 8px }
+  .lnk { border: 0; background: none; padding: 0; color: var(--sky); font-weight: 500; text-decoration: underline; text-underline-offset: 2px }
   .err { color: #9B1C2C; background: #FDE4E7; padding: 6px 10px; border-radius: 8px; margin: 0 }
   .qseg { display: inline-flex; align-items: center; gap: 2px } .qseg .muted { margin-right: 4px; font-size: 12px }
   .qseg button { border: 1px solid var(--line); background: #fff; font-size: 12px; padding: 3px 8px; border-radius: 6px } .qseg button.on { background: var(--t800); border-color: var(--t800); color: #fff } .qt { width: 110px !important } .qz { max-width: 170px }

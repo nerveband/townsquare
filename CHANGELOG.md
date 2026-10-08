@@ -6,6 +6,28 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.6.1] - 2026-10-08
+
+### Added
+- **Telegram works out of the box.** Releases include Townsquare's own Telegram app ID, so you
+  just scan the QR code; no trip to my.telegram.org. The ID comes with each signed update, so it
+  can be swapped on every install without a new release. You can still use your own ID in
+  Settings → Telegram.
+- **A quiet update button.** When an update is available, ready, or just installed, a small
+  button appears in the top bar. Click it to read what's new. It never pops up over your work.
+- **Seamless updates.** If Townsquare updates itself while the page is open, the page reloads on
+  its own the next time you're not typing or editing (or shows **Reload** until then).
+- Release notes in the app come straight from this changelog, the same text as on GitHub.
+
+### Changed
+- The search box and History button show as icons below 1440 pixels wide, to make room.
+
+### API changes
+- `GET /api/v1/update` includes `changes` (release notes for the newer version).
+- New `GET /api/v1/changelog?from=&to=&limit=`.
+- New `DELETE /api/v1/telegram/app` (admin) to go back to the shared app ID.
+- Telegram status includes `app_source` (`own`, `shared` or `built-in`).
+
 ## [v0.6.0] - 2026-10-08
 
 ### Added

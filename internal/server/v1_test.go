@@ -129,3 +129,18 @@ func TestUpdateEndpoints(t *testing.T) {
 		}
 	}
 }
+
+func TestChangelogEndpoint(t *testing.T) {
+	s := &Server{}
+	rec := httptest.NewRecorder()
+	s.changelogHandler(rec, httptest.NewRequest("GET", "/api/v1/changelog?limit=1", nil))
+	var es []map[string]string
+	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &es) != nil || len(es) != 1 || es[0]["version"] == "" || es[0]["notes"] == "" {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	s.changelogHandler(rec, httptest.NewRequest("GET", "/api/v1/changelog?from=v99.0.0", nil))
+	if strings.TrimSpace(rec.Body.String()) != "[]" {
+		t.Fatalf("future from: %s", rec.Body.String())
+	}
+}

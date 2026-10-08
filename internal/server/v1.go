@@ -55,6 +55,8 @@ func (s *Server) v1Mux() *http.ServeMux {
 	m.HandleFunc("GET /api/v1/whatsapp/qr.png", s.whatsappQR)
 	m.HandleFunc("POST /api/v1/whatsapp/logout", s.whatsappLogout)
 	m.HandleFunc("POST /api/v1/telegram/app", s.telegramApp)
+	m.HandleFunc("DELETE /api/v1/telegram/app", s.telegramAppReset)
+	m.HandleFunc("GET /api/v1/changelog", s.changelogHandler)
 	m.HandleFunc("GET /api/v1/settings", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.DB.Settings(r.Context())) })
 	m.HandleFunc("PATCH /api/v1/settings", s.saveSettings)
 

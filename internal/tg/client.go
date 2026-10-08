@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,8 +22,9 @@ import (
 
 // State is what the login screen shows.
 type State struct {
-	Configured bool   `json:"configured"` // telegram.app exists
-	Status     string `json:"status"`     // off, starting, logged_out, qr, password, ready, error
+	Configured bool   `json:"configured"`           // an app id is available
+	AppSource  string `json:"app_source,omitempty"` // own, shared or built-in
+	Status     string `json:"status"`               // off, starting, logged_out, qr, password, ready, error
 	QRURL      string `json:"-"`
 	QRExpires  int64  `json:"qr_expires,omitempty"`
 	User       string `json:"user,omitempty"`
@@ -38,6 +38,7 @@ type Client struct {
 	dataDir  string
 	appID    int
 	appHash  string
+	source   string // own, shared or built-in
 	c        *telegram.Client
 	loggedIn qrlogin.LoggedIn
 
@@ -49,24 +50,18 @@ type Client struct {
 	loginRun bool
 }
 
-// New returns nil, nil when Telegram isn't set up (no telegram.app file).
+// New returns nil, nil when no Telegram app id is available (see ResolveApp).
 func New(dataDir string) (*Client, error) {
-	b, err := os.ReadFile(filepath.Join(dataDir, "telegram.app"))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
+	app, source, err := ResolveApp(dataDir)
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
-	if len(lines) < 2 {
-		return nil, errors.New("telegram.app must have api_id on line 1 and api_hash on line 2")
+	if !app.Valid() {
+		return nil, nil
 	}
-	id, err := strconv.Atoi(strings.TrimSpace(lines[0]))
-	if err != nil {
-		return nil, errors.New("telegram.app: api_id must be a number")
-	}
-	cl := &Client{dataDir: dataDir, appID: id, appHash: strings.TrimSpace(lines[1]), state: State{Configured: true, Status: "starting"}}
+	id := app.ID
+	lines := []string{"", app.Hash}
+	cl := &Client{dataDir: dataDir, appID: id, appHash: strings.TrimSpace(lines[1]), source: source, state: State{Configured: true, Status: "starting", AppSource: source}}
 	d := tgapi.NewUpdateDispatcher()
 	cl.loggedIn = qrlogin.OnLoginToken(d)
 	cl.c = telegram.NewClient(id, cl.appHash, telegram.Options{
@@ -224,3 +219,14 @@ func (cl *Client) API() *tgapi.Client {
 	defer cl.mu.Unlock()
 	return cl.api
 }
+
+// Source is where the app id came from: own, shared or built-in.
+func (cl *Client) Source() string {
+	if cl == nil {
+		return ""
+	}
+	return cl.source
+}
+
+// UsesApp reports whether the client runs with app id a.
+func (cl *Client) UsesApp(a App) bool { return cl != nil && cl.appID == a.ID && cl.appHash == a.Hash }

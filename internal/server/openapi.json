@@ -3037,7 +3037,7 @@
     "tags": [
      "Telegram"
     ],
-    "summary": "Set Telegram app id",
+    "summary": "Use your own Telegram app id",
     "responses": {
      "200": {
       "description": "OK",
@@ -3062,7 +3062,7 @@
       "$ref": "#/components/responses/E409"
      }
     },
-    "description": "Admin. Saves the api_id and api_hash from my.telegram.org (API development tools) and starts Telegram. Then log in with /telegram/login.",
+    "description": "Admin. Optional: releases include Townsquare's shared app id (updated over the air). Saves your own api_id and api_hash from my.telegram.org instead. Log out of Telegram first. Telegram restarts to use it (the response is then {\"ok\": true, \"restarting\": true}).",
     "requestBody": {
      "required": true,
      "content": {
@@ -3085,7 +3085,92 @@
       }
      }
     },
-    "operationId": "set_telegram_app_id"
+    "operationId": "use_your_own_telegram_app_id"
+   },
+   "delete": {
+    "tags": [
+     "Telegram"
+    ],
+    "summary": "Use the shared Telegram app id",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TelegramState"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "403": {
+      "$ref": "#/components/responses/E403"
+     },
+     "409": {
+      "$ref": "#/components/responses/E409"
+     }
+    },
+    "description": "Admin. Removes your own app id. Log out of Telegram first.",
+    "operationId": "use_the_shared_telegram_app_id"
+   }
+  },
+  "/changelog": {
+   "get": {
+    "tags": [
+     "System"
+    ],
+    "summary": "Get release notes",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ChangelogEntry"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "description": "Sections of the CHANGELOG.md built into this version, newest first. Notes for a newer release are in GET /update → changes.",
+    "parameters": [
+     {
+      "name": "from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Exclusive, e.g. v0.6.0"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Inclusive"
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "operationId": "get_release_notes"
    }
   },
   "/sessions": {
@@ -3636,6 +3721,27 @@
      "auto": {
       "type": "boolean",
       "description": "auto_update setting"
+     },
+     "changes": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/ChangelogEntry"
+      }
+     }
+    }
+   },
+   "ChangelogEntry": {
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string"
+     },
+     "notes": {
+      "type": "string",
+      "description": "Markdown from CHANGELOG.md"
      }
     }
    },
@@ -3699,7 +3805,16 @@
     "properties": {
      "configured": {
       "type": "boolean",
-      "description": "telegram.app (api_id, api_hash) exists on the server"
+      "description": "a Telegram app id is available"
+     },
+     "app_source": {
+      "type": "string",
+      "enum": [
+       "own",
+       "shared",
+       "built-in"
+      ],
+      "description": "where the app id comes from"
      },
      "status": {
       "type": "string",

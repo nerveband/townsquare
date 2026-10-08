@@ -47,6 +47,7 @@ type Server struct {
 	connected bool
 	sending   string
 	linker    *wa.Linker      // WhatsApp linking in progress, from the browser
+	reload    bool            // restart soon to pick up a new shared Telegram app id
 	baseCtx   context.Context // lives as long as the server
 }
 
@@ -122,6 +123,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/whatsapp/qr.png", s.whatsappQR)
 	m.HandleFunc("POST /api/whatsapp/logout", s.whatsappLogout)
 	m.HandleFunc("POST /api/telegram/app", s.telegramApp)
+	m.HandleFunc("DELETE /api/telegram/app", s.telegramAppReset)
+	m.HandleFunc("GET /api/changelog", s.changelogHandler)
 	if s.UI != nil {
 		files := http.FileServer(http.FS(s.UI))
 		m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

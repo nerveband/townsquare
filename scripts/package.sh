@@ -5,7 +5,7 @@
 #   townsquare-V-<os>-<arch>[.exe]   plain binaries (the self-updater downloads these)
 #   Townsquare-V-mac.dmg             Mac app (Apple silicon and Intel)
 #   townsquare_X.Y.Z_<arch>.deb      Debian, Ubuntu, Raspberry Pi OS (amd64, arm64, armhf)
-#   latest.json + latest.json.sig    signed update manifest
+#   latest.json + latest.json.sig    signed update manifest (with changelog and Telegram app id)
 #   SHA256SUMS
 #
 # The signing key lives outside the repo: TOWNSQUARE_SIGNING_KEY (default
@@ -15,6 +15,10 @@ cd "$(dirname "$0")/.."
 V="${1:?usage: scripts/package.sh vX.Y.Z}"
 KEY="${TOWNSQUARE_SIGNING_KEY:-$HOME/.config/townsquare/release-signing.key}"
 [ -f "$KEY" ] || { echo "signing key not found: $KEY"; exit 1; }
+# Shared Telegram app id ("ID:HASH"), baked into binaries and sent in latest.json.
+TGAPP="${TOWNSQUARE_TG_APP_FILE:-$HOME/.config/townsquare/telegram-app}"
+[ -f "$TGAPP" ] || { echo "shared Telegram app id not found: $TGAPP"; exit 1; }
+export TOWNSQUARE_TG_APP="$(tr -d '[:space:]' < "$TGAPP")"
 [ "$(uname -s)" = Darwin ] || { echo "package.sh runs on macOS"; exit 1; }
 
 rm -rf dist && mkdir -p dist
@@ -73,18 +77,8 @@ for pair in amd64:amd64 arm64:arm64 armv7:armhf; do
 done
 echo "✓ deb"
 
-# Signed update manifest.
-python3 - "$V" <<'PY'
-import hashlib, json, os, sys, datetime
-v = sys.argv[1]
-files = {}
-for plat in ["darwin-arm64", "darwin-amd64", "linux-amd64", "linux-arm64", "linux-armv7", "windows-amd64"]:
-    name = f"townsquare-{v}-{plat}" + (".exe" if plat.startswith("windows") else "")
-    files[plat] = {"name": name, "sha256": hashlib.sha256(open(f"dist/{name}", "rb").read()).hexdigest()}
-m = {"version": v, "date": datetime.date.today().isoformat(),
-     "notes": f"https://github.com/nerveband/townsquare/releases/tag/{v}", "files": files}
-open("dist/latest.json", "w").write(json.dumps(m, indent=2) + "\n")
-PY
+# Signed update manifest (binaries, changelog, shared Telegram app id).
+go run ./tools/manifest "$V" dist "$TGAPP" >/dev/null
 go run ./tools/sign sign "$KEY" dist/latest.json
 ( cd dist && shasum -a 256 townsquare-* Townsquare-* *.deb latest.json > SHA256SUMS )
 echo "✓ signed latest.json"

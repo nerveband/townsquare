@@ -101,9 +101,8 @@ Townsquare opens in your browser at **http://127.0.0.1:8890**, already signed in
 **2. Link WhatsApp.** Click **Link now**. On your phone, go to **WhatsApp → Settings → Linked
 devices → Link a device** and scan the code. Your groups and channels show up in a few seconds.
 
-**3. Add Telegram (optional).** Go to **Settings → Telegram**. Follow the link to
-[my.telegram.org](https://my.telegram.org) to get a free app ID, paste it in, and scan the QR code
-from **Telegram → Settings → Devices → Link Desktop Device**.
+**3. Add Telegram (optional).** Go to **Settings → Telegram**, click **Log in with QR code**, and
+scan it from **Telegram → Settings → Devices → Link Desktop Device**.
 
 **4. Pick where posts may go.** Townsquare starts in safe mode. In **Settings → Groups & safety**,
 check **Allow** next to each group you want to post to. That's it: write your first post.
@@ -117,9 +116,10 @@ In **Settings → General**, check **Start when I log in**.
 ### Updates happen on their own
 
 Townsquare checks for a new version every 6 hours. It downloads it, checks that it's really from
-us (every release is signed), and switches over when no post is due in the next 15 minutes.
-You can also click **Check for updates** in Settings, or run `townsquare update`. Don't want
-automatic updates? Uncheck **Install updates automatically**.
+us (every release is signed), and switches over when no post is due in the next 15 minutes. It
+never interrupts you: a small **Update** or **What's new** button appears at the top, and clicking
+it shows the release notes. Don't want automatic updates? Uncheck **Install updates
+automatically** in Settings. From a terminal, `townsquare update` does the same.
 
 ### Try the demo first
 

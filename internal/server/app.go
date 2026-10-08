@@ -5,13 +5,13 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	townsquare "github.com/nerveband/townsquare"
 	"github.com/nerveband/townsquare/internal/autostart"
+	"github.com/nerveband/townsquare/internal/changelog"
 	"github.com/nerveband/townsquare/internal/store"
 	"github.com/nerveband/townsquare/internal/tg"
 	"github.com/nerveband/townsquare/internal/update"
@@ -88,6 +88,13 @@ func (s *Server) RunUpdates(ctx context.Context) {
 			if err != nil {
 				log.Println("update:", err)
 			}
+			s.syncTelegramApp()
+		}
+		if s.reloadWanted() && s.busySoon(ctx) == "" {
+			log.Println("telegram: shared app id changed; restarting to use it")
+			s.DB.Log(ctx, "townsquare", "switched to the new shared Telegram app id")
+			s.requestRestart("reload")
+			return
 		}
 		if !auto || dev {
 			continue
@@ -109,9 +116,13 @@ func (s *Server) updateState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := s.Updater.State()
+	changes := st.Changes
+	if changes == nil {
+		changes = []changelog.Entry{}
+	}
 	writeJSON(w, map[string]any{"current": st.Current, "latest": st.Latest, "notes": st.Notes, "available": st.Available,
 		"staged": st.Staged, "checked_at": st.CheckedAt, "error": st.Error, "platform": st.Platform, "dev": st.Dev,
-		"auto": s.DB.Setting(r.Context(), "auto_update") != "0"})
+		"auto": s.DB.Setting(r.Context(), "auto_update") != "0", "changes": changes})
 }
 
 func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +134,7 @@ func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
 		failCode(w, 502, "unavailable", err)
 		return
 	}
+	s.syncTelegramApp()
 	s.updateState(w, r)
 }
 
@@ -290,7 +302,62 @@ func (s *Server) whatsappLogout(w http.ResponseWriter, r *http.Request) {
 	s.whatsappState(w, r)
 }
 
-// telegramApp saves the app id and hash from my.telegram.org and starts Telegram.
+// syncTelegramApp saves the shared Telegram app id from the newest verified
+// manifest. With no Telegram before, it starts Telegram right away; if the id in
+// use changed, the server restarts into it at the next quiet moment.
+func (s *Server) syncTelegramApp() {
+	if s.Updater == nil || s.Demo {
+		return
+	}
+	m := s.Updater.Last()
+	if m == nil || m.Telegram == nil {
+		return
+	}
+	a := tg.App{ID: m.Telegram.ID, Hash: m.Telegram.Hash}
+	changed, err := tg.SaveSharedApp(s.DataDir, a)
+	if err != nil {
+		log.Println("telegram:", err)
+		return
+	}
+	if s.TG == nil {
+		s.startTelegram()
+		return
+	}
+	if changed && s.TG.Source() != "own" && !s.TG.UsesApp(a) {
+		s.mu.Lock()
+		s.reload = true
+		s.mu.Unlock()
+	}
+}
+
+func (s *Server) reloadWanted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.reload
+}
+
+// startTelegram starts Telegram if an app id is available and it isn't running.
+func (s *Server) startTelegram() {
+	if s.TG != nil {
+		return
+	}
+	t, err := tg.New(s.DataDir)
+	if err != nil || t == nil {
+		if err != nil {
+			log.Println("telegram:", err)
+		}
+		return
+	}
+	s.TG = t
+	base := s.baseCtx
+	if base == nil {
+		base = context.Background()
+	}
+	go s.RunTelegram(base)
+}
+
+// telegramApp sets your own Telegram app id (from my.telegram.org) instead of
+// Townsquare's shared one. Telegram restarts to use it, so do this before logging in.
 func (s *Server) telegramApp(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		APIID   string `json:"api_id"`
@@ -300,35 +367,60 @@ func (s *Server) telegramApp(w http.ResponseWriter, r *http.Request) {
 		failCode(w, 400, "bad_request", err)
 		return
 	}
-	in.APIID, in.APIHash = strings.TrimSpace(in.APIID), strings.TrimSpace(in.APIHash)
-	if !regexp.MustCompile(`^\d{3,12}$`).MatchString(in.APIID) || !regexp.MustCompile(`^[0-9a-fA-F]{32}$`).MatchString(in.APIHash) {
+	a, err := tg.ParseApp(strings.TrimSpace(in.APIID) + ":" + strings.TrimSpace(in.APIHash))
+	if err != nil || !regexp.MustCompile(`^[0-9a-fA-F]{32}$`).MatchString(a.Hash) {
 		failCode(w, 400, "bad_request", errors.New("api_id is a number and api_hash is 32 letters and digits, both from my.telegram.org → API development tools"))
 		return
 	}
+	s.setTelegramApp(w, r, &a)
+}
+
+// telegramAppReset goes back to Townsquare's shared Telegram app id.
+func (s *Server) telegramAppReset(w http.ResponseWriter, r *http.Request) {
+	s.setTelegramApp(w, r, nil)
+}
+
+func (s *Server) setTelegramApp(w http.ResponseWriter, r *http.Request, a *tg.App) {
 	if s.Demo {
 		failCode(w, 409, "unavailable", errors.New("not in demo mode"))
 		return
 	}
-	if s.TG != nil {
-		failCode(w, 409, "conflict", errors.New("Telegram is already set up"))
+	if s.TG.Ready() {
+		failCode(w, 409, "conflict", errors.New("log out of Telegram first; the app id is used when you log in"))
 		return
 	}
-	if err := os.WriteFile(filepath.Join(s.DataDir, "telegram.app"), []byte(in.APIID+"\n"+in.APIHash+"\n"), 0o600); err != nil {
+	var err error
+	msg := "set a custom Telegram app id"
+	if a != nil {
+		err = tg.SaveOwnApp(s.DataDir, *a)
+	} else {
+		err, msg = tg.RemoveOwnApp(s.DataDir), "went back to the shared Telegram app id"
+	}
+	if err != nil {
 		fail(w, 500, err)
 		return
 	}
-	t, err := tg.New(s.DataDir)
-	if err != nil || t == nil {
-		fail(w, 500, errors.Join(errors.New("couldn't start Telegram"), err))
+	s.DB.Log(r.Context(), actorOf(r), msg)
+	if s.TG == nil {
+		s.startTelegram()
+		time.Sleep(time.Second)
+		s.telegramState(w, r)
 		return
 	}
-	s.TG = t
-	base := s.baseCtx
-	if base == nil {
-		base = context.Background()
+	// A running client keeps its id until restarted.
+	writeJSON(w, map[string]any{"ok": true, "restarting": true})
+	go func() { time.Sleep(500 * time.Millisecond); s.requestRestart("reload") }()
+}
+
+// changelogHandler returns release notes from the CHANGELOG.md built into this
+// version: ?from=v0.6.0 (exclusive) and ?to=v0.7.0 (inclusive), newest first.
+func (s *Server) changelogHandler(w http.ResponseWriter, r *http.Request) {
+	es := changelog.Between(changelog.Parse(townsquare.Changelog), r.URL.Query().Get("from"), r.URL.Query().Get("to"), update.Newer)
+	if n := atoi(r.URL.Query().Get("limit"), 0); n > 0 && len(es) > n {
+		es = es[:n]
 	}
-	go s.RunTelegram(base)
-	s.DB.Log(r.Context(), actorOf(r), "set up Telegram")
-	time.Sleep(time.Second)
-	s.telegramState(w, r)
+	if es == nil {
+		es = []changelog.Entry{}
+	}
+	writeJSON(w, es)
 }

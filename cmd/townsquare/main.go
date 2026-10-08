@@ -255,8 +255,8 @@ func main() {
 			time.Sleep(time.Second)
 			cli.Disconnect()
 			_ = db.Close()
-			if why == "update" {
-				fmt.Println("Restarting into the update...")
+			if why == "update" || why == "reload" {
+				fmt.Println("Restarting...")
 				if err := update.Restart(*dataDir, version.Version); err != nil {
 					fmt.Fprintln(os.Stderr, "update:", err)
 					os.Exit(1) // a service manager starts it again (and Handoff picks the update)

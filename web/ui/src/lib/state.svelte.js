@@ -18,6 +18,7 @@ export const app = $state({
   peek: null, peekPinned: false,
   toast: null,
   error: '',
+  versionChanged: '',
 })
 
 /** The zone everything is shown in: a temporary preview zone, or the default from Settings. */
@@ -54,6 +55,7 @@ export async function loadState() {
   app.sentToday = s.sent_today
   app.undo = s.undo
   app.redo = s.redo
+  if (app.version && s.version && s.version !== app.version) app.versionChanged = s.version // restarted into an update
   app.version = s.version
   app.demo = !!s.demo
   app.telegram = s.telegram || 'off'

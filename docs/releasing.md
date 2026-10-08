@@ -21,6 +21,16 @@
   To rotate: `go run ./tools/sign keygen NEWFILE`, add its public key to `key.go`, release once
   signed with the old key, then sign with the new one. Never mark a broken build as the latest
   release; publish a fixed patch instead (installs only move forward).
+- **Shared Telegram app id.** Release builds bake in `~/.config/townsquare/telegram-app`
+  (`api_id:api_hash`, mode 600, or `TOWNSQUARE_TG_APP_FILE`) and `latest.json` carries it too.
+  Installs use, in order: their own `telegram.app`, the id from the newest signed `latest.json`
+  (saved as `telegram.shared.json`), then the built-in one. To swap it everywhere without a new
+  release, put the new id in that file and run `scripts/telegram-app.sh`; installs switch at their
+  next check and restart when no post is due. Logged-in sessions normally carry over; if Telegram
+  rejects them, people scan the QR code again.
+- **In-app release notes** come from `CHANGELOG.md`: the binary embeds it (shown after an update)
+  and `latest.json` carries the newest sections (shown before one). Write entries for people,
+  not developers.
 - Test an update locally: serve a folder with `latest.json`, its `.sig` and a binary, and run
   with `TOWNSQUARE_UPDATE_URL=http://127.0.0.1:PORT`.
 - API docs on any running instance: `/api/v1/docs`.

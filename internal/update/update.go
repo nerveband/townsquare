@@ -31,6 +31,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nerveband/townsquare/internal/changelog"
 )
 
 // DefaultBase serves the newest release's files.
@@ -47,10 +49,20 @@ type File struct {
 
 // Manifest is latest.json.
 type Manifest struct {
-	Version string          `json:"version"`
-	Date    string          `json:"date"`
-	Notes   string          `json:"notes"`
-	Files   map[string]File `json:"files"`
+	Version string            `json:"version"`
+	Date    string            `json:"date"`
+	Notes   string            `json:"notes"` // release page URL
+	Files   map[string]File   `json:"files"`
+	Changes []changelog.Entry `json:"changes,omitempty"` // recent CHANGELOG.md sections, newest first
+	// Telegram is the shared Telegram app id. Shipping it here (signed) lets it
+	// be swapped on every install without a new release.
+	Telegram *TelegramApp `json:"telegram,omitempty"`
+}
+
+// TelegramApp is a Telegram api_id and api_hash.
+type TelegramApp struct {
+	ID   int    `json:"api_id"`
+	Hash string `json:"api_hash"`
 }
 
 // Staged is DATA/bin/current.json: the downloaded binary to run instead of the installed one.
@@ -71,6 +83,8 @@ type State struct {
 	Error     string `json:"error,omitempty"`
 	Platform  string `json:"platform"`
 	Dev       bool   `json:"dev"` // a build from source: updates are shown, never installed automatically
+	// Changes are the release notes between this version and Latest, newest first.
+	Changes []changelog.Entry `json:"changes,omitempty"`
 }
 
 // Updater checks for, downloads and stages releases.
@@ -82,6 +96,14 @@ type Updater struct {
 
 	mu    sync.Mutex
 	state State
+	last  *Manifest
+}
+
+// Last is the most recent verified manifest (nil before the first check).
+func (u *Updater) Last() *Manifest {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.last
 }
 
 // New returns an updater for this build.
@@ -127,6 +149,8 @@ func (u *Updater) Check(ctx context.Context) (*Manifest, error) {
 	u.state.Error = ""
 	u.state.Latest, u.state.Notes = m.Version, m.Notes
 	u.state.Available = Newer(m.Version, u.Current)
+	u.state.Changes = changelog.Between(m.Changes, u.Current, m.Version, Newer)
+	u.last = m
 	return m, nil
 }
 
@@ -295,12 +319,16 @@ func Handoff(dataDir, current string) {
 	}
 }
 
-// Restart replaces this process with the staged binary (same arguments). Call
-// it after closing the database and listeners.
+// Restart replaces this process (same arguments) with the staged update when
+// one is ready, else with the installed program. Call it after closing the
+// database and listeners.
 func Restart(dataDir, current string) error {
-	p, ok := StagedPath(dataDir, current)
-	if !ok {
-		return errors.New("no update is ready")
+	if p, ok := StagedPath(dataDir, current); ok && IsRelease(current) {
+		return run(p, os.Args[1:])
+	}
+	p, err := os.Executable()
+	if err != nil {
+		return err
 	}
 	return run(p, os.Args[1:])
 }

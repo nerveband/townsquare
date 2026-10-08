@@ -138,7 +138,8 @@ GET  /api/v1/whatsapp                         ({linked, connected, number, link:
 POST /api/v1/whatsapp/link  {"phone": "15551234567"}   (phone optional: adds a typed pairing code)
 GET  /api/v1/whatsapp/qr.png                  (scan in WhatsApp: Settings > Linked devices > Link a device)
 POST /api/v1/whatsapp/logout                  (unlinks this device)
-POST /api/v1/telegram/app   {"api_id": "...", "api_hash": "..."}   (from my.telegram.org; then /telegram/login)
+POST /api/v1/telegram/app   {"api_id": "...", "api_hash": "..."}   (optional: your own id instead of the shared one)
+DELETE /api/v1/telegram/app                    (back to Townsquare's shared Telegram app id)
 ```
 
 Townsquare updates itself from signed GitHub releases. `GET /api/v1/update` shows the current
@@ -147,6 +148,11 @@ and newest version; `POST /api/v1/update/check` checks now. With the `auto_updat
 and SHA-256, and restarts into it when no post is due within 15 minutes.
 `POST /api/v1/update/install` (admin) does it now; it answers 409 `busy` near a send unless you
 pass `{"force": true}`. Builds from source report updates but never install them.
+
+`GET /api/v1/update` → `changes` holds the release notes for the newer version;
+`GET /api/v1/changelog?from=v0.6.0` returns the notes built into the running version.
+Releases also carry Townsquare's shared Telegram app id, so Telegram works without
+my.telegram.org; the id can change over the air.
 
 `GET/PUT /api/v1/autostart {"enabled": true}` (admin) turns "start when I log in" on or off.
 `POST /api/v1/quit` (admin) stops the server.
