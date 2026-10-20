@@ -79,6 +79,24 @@ func TestWhatsAppListsFromEvents(t *testing.T) {
 	if got := lists()["Favorites"]; len(got) != 1 || got[0] != g2 {
 		t.Fatalf("favorites replaced: %v", got)
 	}
+	// WhatsApp may also send a Favorites-type list: still one Favorites, with both sets of chats.
+	s.onWAList(0, &events.LabelEdit{LabelID: "9", Action: &waSyncAction.LabelEditAction{Name: proto.String("Favourites"), Type: waSyncAction.LabelEditAction_FAVORITES.Enum()}})
+	s.onWAList(0, member("9", g1, true))
+	if ls, _ := db.WALists(ctx); func() int {
+		n := 0
+		for _, l := range ls {
+			if l.Kind == "favorites" {
+				n++
+				if l.ID != "favorites" || len(l.JIDs) != 2 {
+					t.Fatalf("merged favorites: %+v", l)
+				}
+			}
+		}
+		return n
+	}() != 1 {
+		t.Fatalf("favorites shown more than once: %+v", ls)
+	}
+	s.onWAList(0, label("9", "Favourites", true))
 	gj, _ := types.ParseJID(g2)
 	s.onWAList(0, &events.Pin{JID: gj, Action: &waSyncAction.PinAction{Pinned: proto.Bool(true)}})
 	for _, tg := range db.Targets(ctx) {

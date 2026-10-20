@@ -6,6 +6,12 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.10.1] - 2026-10-20
+
+### Fixed
+- WhatsApp Favorites showed up twice for some accounts. Now there's one Favorites list with all
+  your favorite groups and channels.
+
 ## [v0.10.0] - 2026-10-20
 
 ### Added

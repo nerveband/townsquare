@@ -134,8 +134,37 @@ func (db *DB) WALists(ctx context.Context) ([]WAList, error) {
 			out[i].JIDs = append(out[i].JIDs, jid)
 		}
 	}
-	for i := range out {
-		sort.Strings(out[i].JIDs)
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	// WhatsApp can send Favorites twice (a Favorites list and a favorites record):
+	// show one per account, with the chats of both.
+	merged := out[:0]
+	fav := map[int64]int{}
+	for _, l := range out {
+		if l.Kind != "favorites" {
+			merged = append(merged, l)
+			continue
+		}
+		i, ok := fav[l.Account]
+		if !ok {
+			l.ID, l.Name = "favorites", "Favorites"
+			fav[l.Account] = len(merged)
+			merged = append(merged, l)
+			continue
+		}
+		seen := map[string]bool{}
+		for _, j := range merged[i].JIDs {
+			seen[j] = true
+		}
+		for _, j := range l.JIDs {
+			if !seen[j] {
+				merged[i].JIDs = append(merged[i].JIDs, j)
+			}
+		}
+	}
+	for i := range merged {
+		sort.Strings(merged[i].JIDs)
+	}
+	return merged, nil
 }
