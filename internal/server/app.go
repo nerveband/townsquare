@@ -308,6 +308,9 @@ func (s *Server) whatsappLink(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		s.DB.Log(r.Context(), actorOf(r), "started linking WhatsApp")
 		time.Sleep(1500 * time.Millisecond) // usually enough for the first QR code
+	} else if phone != "" {
+		l.UsePhone(phone)
+		time.Sleep(1500 * time.Millisecond) // usually enough for the code
 	}
 	s.whatsappState(w, r)
 }

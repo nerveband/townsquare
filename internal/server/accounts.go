@@ -395,12 +395,24 @@ func (s *Server) startAccountLogin(x *extraAccount, phone string) error {
 		if x.wa.Store.ID != nil {
 			return nil
 		}
+		phone = regexp.MustCompile(`\D`).ReplaceAllString(phone, "")
+		x.mu.Lock()
+		running := x.linker
+		x.mu.Unlock()
+		if running != nil {
+			select {
+			case <-running.Done():
+			default:
+				running.UsePhone(phone)
+				return nil
+			}
+		}
 		base := s.baseCtx
 		if base == nil {
 			base = context.Background()
 		}
 		ctx, cancel := context.WithTimeout(base, 10*time.Minute)
-		l, err := wa.StartLink(ctx, x.wa, regexp.MustCompile(`\D`).ReplaceAllString(phone, ""), true)
+		l, err := wa.StartLink(ctx, x.wa, phone, true)
 		if err != nil {
 			cancel()
 			return err

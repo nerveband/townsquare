@@ -4189,7 +4189,7 @@
       "$ref": "#/components/responses/E409"
      }
     },
-    "description": "Admin. Then show GET /whatsapp/qr.png and scan it in WhatsApp: Settings > Linked devices > Link a device. Codes refresh for up to 10 minutes.",
+    "description": "Admin. Then show GET /whatsapp/qr.png and scan it in WhatsApp: Settings > Linked devices > Link a device. Codes refresh for up to 10 minutes. With a phone number you also get a code to type in (WhatsApp > Linked devices > Link a device > Link with phone number instead); call it again with a phone while linking to get one, and it refreshes with the QR codes.",
     "requestBody": {
      "required": true,
      "content": {
@@ -4768,7 +4768,7 @@
       "$ref": "#/components/responses/E409"
      }
     },
-    "description": "Admin. For when the QR code expired.",
+    "description": "Admin. For when the QR code expired. With a phone (WhatsApp) while the QR code shows, adds a code to type in.",
     "requestBody": {
      "required": true,
      "content": {

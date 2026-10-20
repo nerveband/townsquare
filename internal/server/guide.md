@@ -141,7 +141,7 @@ Admin keys can do the setup that used to need a terminal:
 
 ```
 GET  /api/v1/whatsapp                         ({linked, connected, number, link: {state, pair_code}})
-POST /api/v1/whatsapp/link  {"phone": "15551234567"}   (phone optional: adds a typed pairing code)
+POST /api/v1/whatsapp/link  {"phone": "15551234567"}   (phone optional: adds a typed pairing code; send it again while linking to get one)
 GET  /api/v1/whatsapp/qr.png                  (scan in WhatsApp: Settings > Linked devices > Link a device)
 POST /api/v1/whatsapp/logout                  (unlinks this device; also clears a link the phone already removed)
 POST /api/v1/telegram/app   {"api_id": "...", "api_hash": "..."}   (optional: your own id instead of the shared one)

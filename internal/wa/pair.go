@@ -55,6 +55,46 @@ type Linker struct {
 	st     *pairState
 	linked chan struct{}
 	done   chan struct{}
+	cli    *whatsmeow.Client
+	ctx    context.Context
+	quiet  bool
+	phone  string // guarded by st.mu
+}
+
+// UsePhone asks for a code to type in on the phone (WhatsApp > Linked devices >
+// Link with phone number instead), even when linking already started without one.
+// Each new round of QR codes gets a fresh code too, so the shown code stays valid.
+func (l *Linker) UsePhone(phone string) {
+	if phone == "" {
+		return
+	}
+	l.st.mu.Lock()
+	l.phone = phone
+	l.st.mu.Unlock()
+	if l.cli.IsConnected() && l.cli.Store.ID == nil {
+		l.requestCode()
+	}
+}
+
+func (l *Linker) requestCode() {
+	l.st.mu.Lock()
+	phone := l.phone
+	l.st.mu.Unlock()
+	if phone == "" {
+		return
+	}
+	code, err := l.cli.PairPhone(l.ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Townsquare)")
+	if err != nil {
+		l.st.set(func(p *pairState) { p.PairCode = ""; p.Message = "pairing code: " + err.Error() })
+		if !l.quiet {
+			fmt.Fprintln(os.Stderr, "pairing code:", err)
+		}
+		return
+	}
+	l.st.set(func(p *pairState) { p.PairCode = code; p.Message = "" })
+	if !l.quiet {
+		fmt.Println("Pairing code:", code, "(WhatsApp > Linked devices > Link with phone number)")
+	}
 }
 
 // StartLink begins linking. Quiet suppresses terminal output (the web app uses it).
@@ -65,7 +105,7 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 	if cli.Store.ID != nil {
 		return nil, fmt.Errorf("already linked as %s", cli.Store.ID.User)
 	}
-	l := &Linker{st: &pairState{State: "waiting"}, linked: make(chan struct{}, 1), done: make(chan struct{})}
+	l := &Linker{st: &pairState{State: "waiting"}, linked: make(chan struct{}, 1), done: make(chan struct{}), cli: cli, ctx: ctx, quiet: quiet, phone: phone}
 	st := l.st
 	say := func(a ...any) {
 		if !quiet {
@@ -104,18 +144,7 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 				st.set(func(p *pairState) { p.State = "error"; p.Message = err.Error() })
 				return
 			}
-			if phone != "" && round == 0 {
-				code, err := cli.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Townsquare)")
-				if err != nil {
-					st.set(func(p *pairState) { p.Message = "pairing code: " + err.Error() })
-					if !quiet {
-						fmt.Fprintln(os.Stderr, "pairing code:", err)
-					}
-				} else {
-					st.set(func(p *pairState) { p.PairCode = code })
-					say("Pairing code:", code, "(WhatsApp > Linked devices > Link with phone number)")
-				}
-			}
+			l.requestCode()
 			for item := range qrChan {
 				switch item.Event {
 				case whatsmeow.QRChannelEventCode:

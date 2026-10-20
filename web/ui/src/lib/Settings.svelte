@@ -423,7 +423,15 @@
         {#if ls === 'code' || ls === 'waiting'}
           <p>On your phone, open <b>WhatsApp → Settings → Linked devices → Link a device</b> and scan this code. It refreshes on its own.</p>
           {#if ls === 'code'}<img class="tgqr" src="/api/whatsapp/qr.png?v={wa.link.version}" alt="WhatsApp link QR code" />{:else}<p class="muted">Getting a code…</p>{/if}
-          {#if wa.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{wa.link.pair_code}</b></p>{/if}
+          {#if wa.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{wa.link.pair_code}</b></p>
+          {:else}
+            <p>Using WhatsApp on this same phone? Get a code to type in instead.</p>
+            <div class="row">
+              <input class="inp" bind:value={waPhone} placeholder="Phone number with country code" style="max-width:220px" aria-label="Phone number with country code, for a code to type in" />
+              <button class="btn sm" onclick={waLink} disabled={waBusy || !waPhone.trim()}>{waBusy ? 'Getting…' : 'Get a code'}</button>
+            </div>
+            {#if wa.link.message}<p class="err">{wa.link.message}</p>{/if}
+          {/if}
         {:else if ls === 'linked'}
           <p class="st"><span class="dot on"></span>Linked. Connecting and loading your groups…</p>
         {:else}

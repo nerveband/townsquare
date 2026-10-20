@@ -6,6 +6,16 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Fixed
+- **Linking WhatsApp from your phone alone.** While a QR code is showing, you can now add your
+  phone number and tap **Get a code** to get a code you type into WhatsApp instead
+  (Linked devices → Link a device → Link with phone number instead). The code now stays fresh
+  for the whole time linking is open, instead of only working for the first two minutes.
+
+### API changes
+- `POST /whatsapp/link` with a `phone` while linking is already running now returns a typed
+  pairing code instead of ignoring the number. Same for `POST /accounts/{id}/login`.
+
 ## [v0.9.1] - 2026-10-20
 
 ### Fixed
