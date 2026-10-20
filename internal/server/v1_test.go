@@ -124,6 +124,7 @@ func TestUpdateEndpoints(t *testing.T) {
 		{"GET", "/api/v1/update", false}, {"POST", "/api/v1/update/check", false}, {"POST", "/api/v1/update/install", true},
 		{"GET", "/api/v1/autostart", false}, {"PUT", "/api/v1/autostart", true}, {"POST", "/api/v1/quit", true},
 		{"GET", "/api/v1/whatsapp", false}, {"POST", "/api/v1/whatsapp/link", true}, {"GET", "/api/v1/whatsapp/qr.png", true},
+		{"GET", "/api/v1/whatsapp/lists", false}, {"POST", "/api/v1/whatsapp/channels", true},
 		{"POST", "/api/v1/telegram/app", true},
 	} {
 		if got := needsAdmin(httptest.NewRequest(c.method, c.path, nil)); got != c.admin {

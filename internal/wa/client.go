@@ -50,6 +50,8 @@ func Open(ctx context.Context, dataDir, logLevel string) (*whatsmeow.Client, err
 	// Do not download history blobs. Still acknowledge them so the phone stops retrying.
 	cli.ManualHistorySyncDownload = true
 	cli.DisableManualHistorySyncReceipt = false
+	// Emit lists, labels, favorites and pins on full syncs too (Townsquare reads them).
+	cli.EmitAppStateEventsOnFullSync = true
 	return cli, nil
 }
 

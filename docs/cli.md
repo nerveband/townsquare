@@ -957,11 +957,14 @@ List targets. `GET /api/v1/targets` · read_only · paged
 - `--client-id` string 
 - `--allowed` string true/false
 - `--can-send` string true to hide admin-only chats
+- `--pinned` string true/false: pinned in WhatsApp
+- `--list` string Only chats in this WhatsApp list (id from GET /whatsapp/lists)
 - `--include-gone` string 
 
 ```sh
 townsquare targets list --kind group,announce --allowed true --limit 20
 townsquare targets list --q isla --fields jid,name,allowed
+townsquare targets list --list favorites --fields jid,name
 ```
 
 #### `townsquare targets refresh`
@@ -1123,6 +1126,15 @@ Start linking WhatsApp. `POST /api/v1/whatsapp/link` · idempotent
 
 ```sh
 townsquare whatsapp link --phone 15551234567
+```
+
+#### `townsquare whatsapp lists list`
+
+List your WhatsApp lists. `GET /api/v1/whatsapp/lists` · read_only
+
+```sh
+townsquare whatsapp lists list
+townsquare whatsapp lists list --fields name,kind,jids
 ```
 
 #### `townsquare whatsapp logout`

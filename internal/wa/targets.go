@@ -18,6 +18,7 @@ type Target struct {
 	Parent  string `json:"parent,omitempty"`
 	CanSend bool   `json:"can_send"`
 	Members int    `json:"members,omitempty"`
+	Pinned  bool   `json:"pinned,omitempty"` // pinned in WhatsApp
 }
 
 // ListTargets fetches groups, communities and channels live from WhatsApp.
@@ -82,6 +83,15 @@ func ListTargets(ctx context.Context, cli *whatsmeow.Client) ([]Target, error) {
 			CanSend: role == types.NewsletterRoleAdmin || role == types.NewsletterRoleOwner,
 			Members: n.ThreadMeta.SubscriberCount,
 		})
+	}
+	if cli.Store.ChatSettings != nil {
+		for i := range out {
+			if j, err := types.ParseJID(out[i].JID); err == nil {
+				if cs, err := cli.Store.ChatSettings.GetChatSettings(ctx, j); err == nil {
+					out[i].Pinned = cs.Pinned
+				}
+			}
+		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Kind != out[j].Kind {

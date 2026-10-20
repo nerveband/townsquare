@@ -79,7 +79,8 @@ Everything works on phones and tablets too.
 
 - **Telegram:** post as yourself to groups, channels, topics and stories, or use a bot. Telegram
   can even hold your posts on its own servers, so they go out when your computer is off.
-- **WhatsApp:** groups, communities, announcement groups, channels and Status.
+- **WhatsApp:** groups, communities, announcement groups, channels and Status. Your WhatsApp
+  lists, Favorites and Business labels show up when you pick chats, and pinned chats come first.
 - **Month and list views,** search, color tags, clients and saved lists of groups.
 - **Time zones:** see what time a post goes out anywhere in the world.
 - **Undo anything** with ⌘Z. The History panel shows who changed what.

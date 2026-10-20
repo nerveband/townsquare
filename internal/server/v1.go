@@ -53,6 +53,7 @@ func (s *Server) v1Mux() *http.ServeMux {
 	m.HandleFunc("GET /api/v1/whatsapp", s.whatsappState)
 	m.HandleFunc("POST /api/v1/whatsapp/link", s.whatsappLink)
 	m.HandleFunc("GET /api/v1/whatsapp/qr.png", s.whatsappQR)
+	m.HandleFunc("GET /api/v1/whatsapp/lists", s.whatsappLists)
 	m.HandleFunc("POST /api/v1/whatsapp/logout", s.whatsappLogout)
 	m.HandleFunc("POST /api/v1/telegram/app", s.telegramApp)
 	m.HandleFunc("DELETE /api/v1/telegram/app", s.telegramAppReset)
@@ -188,7 +189,25 @@ func (s *Server) v1Targets(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	ql := strings.ToLower(q.Get("q"))
 	out := []store.Target{}
+	var inList map[string]bool // chats in the WhatsApp list asked for
+	if id := q.Get("list"); id != "" {
+		inList = map[string]bool{}
+		ls, _ := s.DB.WALists(r.Context())
+		for _, l := range ls {
+			if l.ID == id {
+				for _, j := range l.JIDs {
+					inList[j] = true
+				}
+			}
+		}
+	}
 	for _, t := range s.DB.Targets(r.Context()) {
+		if inList != nil && !inList[t.JID] {
+			continue
+		}
+		if p := q.Get("pinned"); p != "" && strconv.FormatBool(t.Pinned) != p {
+			continue
+		}
 		if t.Gone && q.Get("include_gone") != "true" {
 			continue
 		}

@@ -640,6 +640,17 @@
           </div>
         {/each}
         <button class="btn pri" onclick={() => (editSet = { name: '', client_id: null, jids: [] })}>New group set</button>
+        {#if app.waLists.length}
+          <h3 style="margin-top:18px">From WhatsApp</h3>
+          <p class="muted">Your WhatsApp lists, Favorites and Business labels show up when you pick chats for a post. Change them in WhatsApp; they update here on their own (or with Refresh chats).</p>
+          {#each app.waLists as l (l.account + ':' + l.id)}
+            <div class="row named">
+              <b style="min-width:180px">{l.kind === 'favorites' ? '♥ ' : ''}{l.name}</b>
+              <span class="muted" style="flex:1">{#if l.jids.length}{l.jids.slice(0, 4).map((j) => target(j).name).join(', ')}{l.jids.length > 4 ? ` +${l.jids.length - 4}` : ''}{:else}No groups or channels in this list{/if}</span>
+              <span class="muted">{l.kind === 'label' ? 'Business label' : l.kind === 'favorites' ? 'Favorites' : 'List'}</span>
+            </div>
+          {/each}
+        {/if}
       {/if}
     {/if}
   </div>

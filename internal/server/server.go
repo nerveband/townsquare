@@ -128,6 +128,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/whatsapp", s.whatsappState)
 	m.HandleFunc("POST /api/whatsapp/link", s.whatsappLink)
 	m.HandleFunc("GET /api/whatsapp/qr.png", s.whatsappQR)
+	m.HandleFunc("GET /api/whatsapp/lists", s.whatsappLists)
 	m.HandleFunc("POST /api/whatsapp/logout", s.whatsappLogout)
 	m.HandleFunc("POST /api/telegram/app", s.telegramApp)
 	m.HandleFunc("DELETE /api/telegram/app", s.telegramAppReset)
@@ -199,6 +200,7 @@ func logRequests(h http.Handler) http.Handler {
 func (s *Server) Connect(ctx context.Context) error {
 	s.baseCtx = ctx
 	s.WA.AddEventHandler(func(evt any) {
+		s.onWAList(0, evt)
 		switch evt.(type) {
 		case *events.Connected:
 			s.setConnected(true)
@@ -208,6 +210,9 @@ func (s *Server) Connect(ctx context.Context) error {
 			go func() {
 				if err := s.syncTargets(context.Background()); err != nil {
 					log.Println("targets:", err)
+				}
+				if err := s.syncLists(context.Background(), s.WA, 0, false); err != nil {
+					log.Println("whatsapp lists:", err)
 				}
 			}()
 		case *events.Disconnected, *events.LoggedOut, *events.StreamReplaced:
@@ -247,7 +252,7 @@ func (s *Server) syncTargets(ctx context.Context) error {
 	}
 	conv := make([]store.Target, 0, len(ts))
 	for _, t := range ts {
-		conv = append(conv, store.Target{JID: t.JID, Kind: t.Kind, Name: t.Name, Parent: t.Parent, CanSend: t.CanSend, Members: t.Members})
+		conv = append(conv, store.Target{JID: t.JID, Kind: t.Kind, Name: t.Name, Parent: t.Parent, CanSend: t.CanSend, Members: t.Members, Pinned: t.Pinned})
 	}
 	if err := s.DB.UpsertTargets(ctx, "whatsapp", conv); err != nil {
 		return err
@@ -344,8 +349,9 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 	sending := s.sending
 	s.mu.Unlock()
 	drafts, _ := s.DB.Posts(ctx, "draft")
+	waLists, _ := s.DB.WALists(ctx)
 	writeJSON(w, map[string]any{
-		"settings": settings, "tags": s.DB.Tags(ctx), "clients": s.DB.Clients(ctx), "sets": s.DB.Sets(ctx),
+		"settings": settings, "tags": s.DB.Tags(ctx), "clients": s.DB.Clients(ctx), "sets": s.DB.Sets(ctx), "wa_lists": waLists,
 		"connected": s.isConnected(), "phone": phone, "sending": sending,
 		"sent_today": s.DB.SentToday(ctx, settings["timezone"]),
 		"undo":       u, "redo": re, "drafts": drafts, "version": version.Version, "demo": s.Demo,
@@ -367,6 +373,9 @@ func (s *Server) refreshTargets(w http.ResponseWriter, r *http.Request) {
 	if err := s.syncTargets(r.Context()); err != nil {
 		fail(w, 500, err)
 		return
+	}
+	if err := s.syncLists(r.Context(), s.WA, 0, true); err != nil {
+		log.Println("whatsapp lists:", err) // chats still refreshed; lists catch up later
 	}
 	writeJSON(w, s.DB.Targets(r.Context()))
 }

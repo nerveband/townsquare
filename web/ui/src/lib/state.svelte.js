@@ -3,7 +3,7 @@ import { addDays, addMonths, dayKey, mondayOf, monthStart } from './time.js'
 export const app = $state({
   ready: false,
   settings: { timezone: 'America/New_York' },
-  tags: [], clients: [], sets: [], targets: [], drafts: [],
+  tags: [], clients: [], sets: [], waLists: [], targets: [], drafts: [],
   connected: false, phone: '', sending: '', sentToday: 0,
   undo: '', redo: '',
   sends: [], posts: {}, media: {}, badges: {},
@@ -51,6 +51,7 @@ export async function loadState() {
   app.tags = s.tags
   app.clients = s.clients
   app.sets = s.sets
+  app.waLists = s.wa_lists || []
   app.drafts = s.drafts
   app.connected = s.connected
   app.phone = s.phone

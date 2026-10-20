@@ -6,6 +6,21 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Added
+- **Your WhatsApp lists, right where you pick chats.** Lists you made in WhatsApp, your
+  Favorites, and WhatsApp Business labels now show up as one-click buttons when you choose where a
+  post goes. Click a list to add all of its groups and channels. Chats you pinned in WhatsApp
+  show a pin and come first. Townsquare only reads your lists: change them in WhatsApp, and
+  they update here on their own (or tap **Refresh chats**). See them all in
+  **Settings → Group sets → From WhatsApp**.
+
+### API changes
+- New `GET /whatsapp/lists` (read scope): your WhatsApp lists, Favorites and Business labels
+  with the chats in each. CLI: `townsquare whatsapp lists list`.
+- Targets have a new `pinned` field, and `GET /targets` takes `pinned` and `list` filters
+  (`townsquare targets list --list favorites`).
+- `POST /targets/refresh` also reloads lists and pins.
+
 ## [v0.9.4] - 2026-10-20
 
 ### Fixed

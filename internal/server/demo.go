@@ -63,6 +63,17 @@ func (s *Server) SeedDemo(ctx context.Context) error {
 	_, _ = s.DB.ExecContext(ctx, `UPDATE targets SET client_id=2 WHERE jid=?`, j(7))
 	_, _ = s.DB.ExecContext(ctx, `INSERT INTO target_sets(name,client_id,jids) VALUES('All Riverside groups',1,?)`,
 		fmt.Sprintf(`["%s","%s","%s","%s"]`, j(3), j(4), j(5), j(6)))
+	// Pins and lists as they'd come from WhatsApp (custom lists, Favorites, a Business label).
+	_, _ = s.DB.ExecContext(ctx, `UPDATE targets SET pinned=1 WHERE jid IN (?,?)`, j(3), j(7))
+	_ = s.DB.ReplaceWAList(ctx, 0, wa.FavoritesList, "Favorites", "favorites", -1, []string{j(3), j(5)}, 1)
+	_ = s.DB.PutWAList(ctx, 0, "1", "Volunteers", "custom", 2, 0, false, 1)
+	_ = s.DB.PutWAList(ctx, 0, "2", "Customers", "label", 5, 1, false, 1)
+	for _, m := range []struct {
+		list string
+		i    int
+	}{{"1", 4}, {"1", 5}, {"1", 6}, {"2", 7}} {
+		_ = s.DB.SetWAListChat(ctx, 0, m.list, j(m.i), true, 1)
+	}
 
 	media := map[string]int64{}
 	for _, m := range []struct{ key, kind, file string }{

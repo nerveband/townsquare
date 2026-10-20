@@ -42,6 +42,7 @@ type Target struct {
 	ClientID *int64 `json:"client_id"`
 	Allowed  bool   `json:"allowed"`
 	Starred  bool   `json:"starred"`
+	Pinned   bool   `json:"pinned"` // pinned in WhatsApp
 	Gone     bool   `json:"gone"`
 	Account  int64  `json:"account"` // 0 = the platform's first account (see internal/acct)
 }
@@ -316,7 +317,7 @@ func (db *DB) Sets(ctx context.Context) []Set {
 
 func (db *DB) Targets(ctx context.Context) []Target {
 	out := []Target{}
-	rows, err := db.QueryContext(ctx, `SELECT jid,platform,kind,name,parent,can_send,members,client_id,allowed,starred,gone,account FROM targets ORDER BY
+	rows, err := db.QueryContext(ctx, `SELECT jid,platform,kind,name,parent,can_send,members,client_id,allowed,starred,gone,account,pinned FROM targets ORDER BY
 		CASE kind WHEN 'self' THEN 0 WHEN 'status' THEN 1 WHEN 'announce' THEN 2 WHEN 'channel' THEN 3 WHEN 'group' THEN 4 ELSE 5 END, name COLLATE NOCASE`)
 	if err != nil {
 		return out
@@ -324,7 +325,7 @@ func (db *DB) Targets(ctx context.Context) []Target {
 	defer rows.Close()
 	for rows.Next() {
 		var t Target
-		_ = rows.Scan(&t.JID, &t.Platform, &t.Kind, &t.Name, &t.Parent, &t.CanSend, &t.Members, &t.ClientID, &t.Allowed, &t.Starred, &t.Gone, &t.Account)
+		_ = rows.Scan(&t.JID, &t.Platform, &t.Kind, &t.Name, &t.Parent, &t.CanSend, &t.Members, &t.ClientID, &t.Allowed, &t.Starred, &t.Gone, &t.Account, &t.Pinned)
 		out = append(out, t)
 	}
 	return out
@@ -361,9 +362,9 @@ func (db *DB) UpsertAccountTargets(ctx context.Context, platform string, account
 		return err
 	}
 	for _, t := range ts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO targets(jid,platform,kind,name,parent,can_send,members,updated_at,gone,account) VALUES(?,?,?,?,?,?,?,?,0,?)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO targets(jid,platform,kind,name,parent,can_send,members,updated_at,gone,account,pinned) VALUES(?,?,?,?,?,?,?,?,0,?,?)
 			ON CONFLICT(jid) DO UPDATE SET platform=excluded.platform,kind=excluded.kind,name=excluded.name,parent=excluded.parent,can_send=excluded.can_send,
-			members=excluded.members,updated_at=excluded.updated_at,gone=0,account=excluded.account`, t.JID, platform, t.Kind, t.Name, t.Parent, t.CanSend, t.Members, now, account); err != nil {
+			members=excluded.members,updated_at=excluded.updated_at,gone=0,account=excluded.account,pinned=excluded.pinned`, t.JID, platform, t.Kind, t.Name, t.Parent, t.CanSend, t.Members, now, account, t.Pinned); err != nil {
 			return err
 		}
 	}

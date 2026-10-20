@@ -108,6 +108,7 @@ func (s *Server) openAccount(ctx context.Context, a store.Account) error {
 		}
 		x.wa = cli
 		cli.AddEventHandler(func(evt any) {
+			s.onWAList(a.ID, evt)
 			switch evt.(type) {
 			case *events.Connected:
 				x.mu.Lock()
@@ -116,6 +117,9 @@ func (s *Server) openAccount(ctx context.Context, a store.Account) error {
 				go func() {
 					if err := s.syncAccount(context.Background(), x); err != nil {
 						log.Printf("account %d chats: %v", a.ID, err)
+					}
+					if err := s.syncLists(context.Background(), cli, a.ID, false); err != nil {
+						log.Printf("account %d lists: %v", a.ID, err)
 					}
 				}()
 			case *events.Disconnected, *events.LoggedOut, *events.StreamReplaced:
@@ -176,7 +180,7 @@ func (s *Server) syncAccount(ctx context.Context, x *extraAccount) error {
 			return err
 		}
 		for _, t := range ts {
-			conv = append(conv, store.Target{JID: acct.Join(x.ID, t.JID), Kind: t.Kind, Name: t.Name, Parent: t.Parent, CanSend: t.CanSend, Members: t.Members})
+			conv = append(conv, store.Target{JID: acct.Join(x.ID, t.JID), Kind: t.Kind, Name: t.Name, Parent: t.Parent, CanSend: t.CanSend, Members: t.Members, Pinned: t.Pinned})
 		}
 	case "telegram":
 		ts, err := x.tg.Targets(ctx)
@@ -538,6 +542,11 @@ func (s *Server) refreshAccount(w http.ResponseWriter, r *http.Request) {
 	if err := s.syncAccount(r.Context(), x); err != nil {
 		fail(w, 502, err)
 		return
+	}
+	if x.wa != nil {
+		if err := s.syncLists(r.Context(), x.wa, x.ID, true); err != nil {
+			log.Printf("account %d lists: %v", x.ID, err)
+		}
 	}
 	writeJSON(w, s.describeAccount(r.Context(), x))
 }

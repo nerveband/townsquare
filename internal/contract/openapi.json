@@ -306,6 +306,24 @@
       "description": "true to hide admin-only chats"
      },
      {
+      "name": "pinned",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "true/false: pinned in WhatsApp"
+     },
+     {
+      "name": "list",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Only chats in this WhatsApp list (id from GET /whatsapp/lists)"
+     },
+     {
       "name": "limit",
       "in": "query",
       "required": false,
@@ -336,7 +354,8 @@
      "effects": "read_only",
      "examples": [
       "townsquare targets list --kind group,announce --allowed true --limit 20",
-      "townsquare targets list --q isla --fields jid,name,allowed"
+      "townsquare targets list --q isla --fields jid,name,allowed",
+      "townsquare targets list --list favorites --fields jid,name"
      ],
      "output_kind": "data",
      "cardinality": "unbounded",
@@ -3941,6 +3960,44 @@
     }
    }
   },
+  "/whatsapp/lists": {
+   "get": {
+    "tags": [
+     "WhatsApp"
+    ],
+    "summary": "List your WhatsApp lists",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WhatsAppList"
+         }
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     }
+    },
+    "description": "Lists, Favorites and Business labels from WhatsApp, with the chats in each. Use a list's jids as post targets. Refreshed with POST /targets/refresh.",
+    "operationId": "list_your_whatsapp_lists",
+    "x-cli": {
+     "name": "whatsapp lists list",
+     "effects": "read_only",
+     "examples": [
+      "townsquare whatsapp lists list",
+      "townsquare whatsapp lists list --fields name,kind,jids"
+     ],
+     "output_kind": "data",
+     "cardinality": "bounded"
+    }
+   }
+  },
   "/whatsapp/channels": {
    "post": {
     "tags": [
@@ -5429,6 +5486,10 @@
      "starred": {
       "type": "boolean"
      },
+     "pinned": {
+      "type": "boolean",
+      "description": "Pinned in WhatsApp"
+     },
      "gone": {
       "type": "boolean"
      },
@@ -6043,6 +6104,43 @@
       }
      }
     }
+   },
+   "WhatsAppList": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "description": "WhatsApp's list id; \"favorites\" for Favorites"
+     },
+     "account": {
+      "type": "integer",
+      "description": "0 = the first WhatsApp account"
+     },
+     "name": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "favorites",
+       "custom",
+       "label"
+      ],
+      "description": "label = a WhatsApp Business label"
+     },
+     "color": {
+      "type": "integer",
+      "description": "WhatsApp's color number"
+     },
+     "jids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Townsquare chats in the list (targets, not people)"
+     }
+    },
+    "description": "A list from WhatsApp (custom lists, Favorites, Business labels). Read-only: change lists in WhatsApp."
    },
    "SetInput": {
     "type": "object",

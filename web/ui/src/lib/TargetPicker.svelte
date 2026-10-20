@@ -15,13 +15,18 @@
       .filter((t) => !client || String(t.client_id || '') === client)
       .filter((t) => !platform || t.platform.startsWith(platform))
       .filter((t) => !ql || t.name.toLowerCase().includes(ql) || (t.parent || '').toLowerCase().includes(ql))
-      .sort((a, b) => (selected.includes(b.jid) - selected.includes(a.jid)) || (b.starred - a.starred) || (ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)) || a.name.localeCompare(b.name))
+      .sort((a, b) => (selected.includes(b.jid) - selected.includes(a.jid)) || (b.starred - a.starred) || (b.pinned - a.pinned) || (ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)) || a.name.localeCompare(b.name))
       .slice(0, 300)
   })
   function toggle(jid) {
     selected = selected.includes(jid) ? selected.filter((x) => x !== jid) : [...selected, jid]
   }
   function addSet(s) { selected = [...new Set([...selected, ...s.jids])] }
+  // WhatsApp lists (and Favorites, Business labels): only the chats Townsquare can post to.
+  const waLists = $derived.by(() => {
+    const ok = new Set(app.targets.filter((t) => !t.gone && t.can_send).map((t) => t.jid))
+    return app.waLists.map((l) => ({ ...l, jids: l.jids.filter((j) => ok.has(j)) })).filter((l) => l.jids.length)
+  })
   const safe = $derived(app.settings.safe_mode === '1')
 </script>
 
@@ -43,6 +48,9 @@
   {#if app.sets.length}
     <div class="sets">{#each app.sets as s}<button class="btn sm" onclick={() => addSet(s)}>+ {s.name} <span class="muted">{s.jids.length}</span></button>{/each}</div>
   {/if}
+  {#if waLists.length}
+    <div class="sets" aria-label="Lists from WhatsApp"><span class="from">WhatsApp lists</span>{#each waLists as l (l.account + ':' + l.id)}<button class="btn sm" title={l.kind === 'label' ? 'WhatsApp Business label' : 'List from WhatsApp'} onclick={() => addSet(l)}>+ {l.kind === 'favorites' ? '♥ ' : ''}{l.name}{#if l.account}<b class="acc">{accountLabel(l.jids[0])}</b>{/if} <span class="muted">{l.jids.length}</span></button>{/each}</div>
+  {/if}
   <div class="rows">
     {#each list as t (t.jid)}
       {@const a = avatar(t.jid)}
@@ -50,7 +58,7 @@
         <input type="checkbox" checked={selected.includes(t.jid)} disabled={!t.can_send && !selected.includes(t.jid)} onchange={() => toggle(t.jid)} />
         <span class="av" style="background:{a.bg}">{a.ini}</span>
         {#if hasTelegram}<Platform platform={t.platform} />{/if}
-        <span class="nm">{t.starred ? '★ ' : ''}{t.name}{#if t.parent && t.parent !== t.name}<i> · {t.parent}</i>{/if}{#if t.account}<b class="acc">{accountLabel(t.jid)}</b>{/if}</span>
+        <span class="nm">{t.starred ? '★ ' : ''}{#if t.pinned}<span class="pin" title="Pinned in WhatsApp">📌</span>{/if}{t.name}{#if t.parent && t.parent !== t.name}<i> · {t.parent}</i>{/if}{#if t.account}<b class="acc">{accountLabel(t.jid)}</b>{/if}</span>
         {#if safe && !t.allowed && t.can_send}<span class="flag" title="Safe mode is on: this target is not on the allowlist, so sends are held back">held</span>{/if}
         {#if !t.can_send}<span class="flag">admins only</span>{/if}
         <span class="k">{KIND_LABEL[t.kind] || t.kind}</span>
@@ -65,7 +73,9 @@
   .picker { display: flex; flex-direction: column; gap: 6px; min-height: 0 }
   .top { display: flex; gap: 6px }
   .top select { width: 140px; flex: none }
-  .sets { display: flex; flex-wrap: wrap; gap: 4px }
+  .sets { display: flex; flex-wrap: wrap; gap: 4px; align-items: center }
+  .from { font: 500 10.5px/1 var(--mono, 'JetBrains Mono', monospace); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-right: 2px }
+  .pin { font-size: 10px; margin-right: 3px }
   .plat { display: flex; gap: 4px }
   .plat button { border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 2px 9px; font-size: 11.5px }
   .plat button.on { background: var(--t800); border-color: var(--t800); color: #fff }

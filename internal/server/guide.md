@@ -48,6 +48,12 @@ history entry, summary `undid: ...`). In `GET /changes` the reverted entry has `
   number of matches before `limit` is in the `X-Total-Count` response header. Anywhere a target is accepted you may
   pass a jid, an exact chat name, `"me"` or `"status"`. Unknown or ambiguous names fail
   with a list of close matches. Never guess; look up with `GET /api/v1/targets?q=...`.
+- **WhatsApp lists:** `GET /api/v1/whatsapp/lists` returns the owner's WhatsApp lists, Favorites
+  and Business labels (`kind`: `custom`, `favorites`, `label`) with the chats in each (`jids`).
+  When the owner says "post to my Volunteers list", use that list's `jids` as targets, or
+  `GET /api/v1/targets?list=<id>`. Lists are read-only here: they change in WhatsApp.
+  `pinned` on a target means it is pinned in WhatsApp (`?pinned=true` filters).
+  `POST /targets/refresh` reloads chats, lists and pins.
 - **Platforms:** a target's `platform` is `whatsapp` or `telegram`. Telegram JIDs look like
   `tg:self` (Saved Messages, safe for tests), `tg:chat:<id>` or `tg:ch:<id>:<hash>`. One post may
   mix platforms. Formatting is written WhatsApp-style (`*bold*`) and converted for Telegram.
