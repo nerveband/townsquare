@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.10.0] - 2026-10-20
+
 ### Added
 - **Your WhatsApp lists, right where you pick chats.** Lists you made in WhatsApp, your
   Favorites, and WhatsApp Business labels now show up as one-click buttons when you choose where a
