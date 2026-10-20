@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.9.2] - 2026-10-20
+
 ### Fixed
 - **Linking WhatsApp from your phone alone.** While a QR code is showing, you can now add your
   phone number and tap **Get a code** to get a code you type into WhatsApp instead
