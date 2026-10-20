@@ -116,6 +116,10 @@
     if (tab === 'accounts' && wa && !wa.linked && (st === 'waiting' || st === 'code')) waTimer = setTimeout(loadWA, 1500)
     if ((tab === 'accounts' || tab === 'general') && wa?.linked && !wa.connected) waTimer = setTimeout(loadWA, 3000)
   }
+  // Countdown while linking: when the QR code changes and when linking closes.
+  let now = $state(Date.now() / 1000)
+  $effect(() => { const ls = wa?.link?.state; if (ls !== 'code' && ls !== 'waiting') return; const t = setInterval(() => (now = Date.now() / 1000), 1000); return () => clearInterval(t) })
+  const mmss = (sec) => { sec = Math.max(0, Math.round(sec)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` }
   async function waLink() { waBusy = true; try { wa = await api('POST', '/api/whatsapp/link', { phone: waPhone }); loadWA() } catch (e) { toast(e.message) } finally { waBusy = false } }
   let chName = $state('')
   async function createChannel() { try { const r = await api('POST', '/api/whatsapp/channels', { name: chName }); chName = ''; toast(`Created ${r.name}. Allow it in Groups & safety to post there.`); setTimeout(loadTargets, 3000) } catch (e) { toast(e.message) } }
@@ -423,6 +427,7 @@
         {#if ls === 'code' || ls === 'waiting'}
           <p>On your phone, open <b>WhatsApp → Settings → Linked devices → Link a device</b> and scan this code. It refreshes on its own.</p>
           {#if ls === 'code'}<img class="tgqr" src="/api/whatsapp/qr.png?v={wa.link.version}" alt="WhatsApp link QR code" />{:else}<p class="muted">Getting a code…</p>{/if}
+          {#if wa.link.ends}<p class="muted mono" aria-live="polite">{#if ls === 'code' && wa.link.expires}New QR code in {mmss(wa.link.expires - now)}{' · '}{/if}Linking closes in {mmss(wa.link.ends - now)}</p>{/if}
           {#if wa.link.pair_code}<p>Or choose <b>Link with phone number instead</b> and enter <b class="mono">{wa.link.pair_code}</b></p>
           {:else}
             <p>Using WhatsApp on this same phone? Get a code to type in instead.</p>

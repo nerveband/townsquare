@@ -24,6 +24,7 @@ type pairState struct {
 	PairCode string `json:"pair_code,omitempty"`
 	Expires  int64  `json:"expires,omitempty"`
 	Message  string `json:"message,omitempty"`
+	Ends     int64  `json:"ends,omitempty"` // when linking stops offering codes (unix seconds)
 	Version  int    `json:"version"`
 }
 
@@ -46,6 +47,7 @@ type LinkState struct {
 	PairCode string `json:"pair_code,omitempty"`
 	Expires  int64  `json:"expires,omitempty"`
 	Message  string `json:"message,omitempty"`
+	Ends     int64  `json:"ends,omitempty"`
 	Version  int    `json:"version"`
 }
 
@@ -107,6 +109,9 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 		return nil, fmt.Errorf("already linked as %s", cli.Store.ID.User)
 	}
 	l := &Linker{st: &pairState{State: "waiting"}, linked: make(chan struct{}, 1), done: make(chan struct{}), cli: cli, ctx: ctx, quiet: quiet, phone: phone}
+	if dl, ok := ctx.Deadline(); ok {
+		l.st.Ends = dl.Unix()
+	}
 	st := l.st
 	say := func(a ...any) {
 		if !quiet {
@@ -136,9 +141,16 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 		defer close(l.done)
 		defer cli.RemoveEventHandler(hid)
 		defer func() {
-			if cli.Store.ID == nil {
-				cli.Disconnect() // gave up: don't leave a half-open login behind
+			if cli.Store.ID != nil {
+				return
 			}
+			cli.Disconnect() // gave up: don't leave a half-open login behind
+			st.set(func(p *pairState) {
+				if p.State != "error" && p.State != "linked" {
+					p.State, p.QR, p.PairCode = "error", "", ""
+					p.Message = "Linking timed out. Start again to get a new code."
+				}
+			})
 		}()
 		for round := 0; ctx.Err() == nil && cli.Store.ID == nil; round++ {
 			qrChan, err := cli.GetQRChannel(ctx)
@@ -203,7 +215,7 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 func (l *Linker) State() LinkState {
 	l.st.mu.Lock()
 	defer l.st.mu.Unlock()
-	return LinkState{State: l.st.State, PairCode: l.st.PairCode, Expires: l.st.Expires, Message: l.st.Message, Version: l.st.Version}
+	return LinkState{State: l.st.State, PairCode: l.st.PairCode, Expires: l.st.Expires, Message: l.st.Message, Ends: l.st.Ends, Version: l.st.Version}
 }
 
 // QR returns the current QR code text ("" when none).

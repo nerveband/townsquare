@@ -10,7 +10,17 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ### Fixed
 - **WhatsApp connects right after you link it.** After linking from Settings, WhatsApp showed
-  "linked" but stayed "not connected" until Townsquare restarted. It now connects on its own.
+  "linked" but stayed "not connected" until Townsquare restarted, and your phone could show an
+  error. It now connects on its own.
+
+### Added
+- **Countdown while linking WhatsApp.** Under the QR code you now see when the next code comes
+  and how long linking stays open (10 minutes). If time runs out, it says so and you can start
+  again.
+
+### API changes
+- The `link` object in `GET /whatsapp` (and accounts) has a new `ends` field: when linking stops
+  offering codes, in unix seconds.
 
 ## [v0.9.3] - 2026-10-20
 

@@ -5492,6 +5492,10 @@
        "expires": {
         "type": "integer"
        },
+       "ends": {
+        "type": "integer",
+        "description": "When linking stops offering codes (unix seconds)"
+       },
        "message": {
         "type": "string"
        },
@@ -5903,6 +5907,10 @@
        },
        "expires": {
         "type": "integer"
+       },
+       "ends": {
+        "type": "integer",
+        "description": "When linking stops offering codes (unix seconds)"
        },
        "message": {
         "type": "string"
