@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.9.1] - 2026-10-20
+
 ### Fixed
 - **Re-linking WhatsApp after you remove Townsquare on your phone.** If you removed Townsquare
   under Linked devices (for example to move to WhatsApp Business), Link WhatsApp showed
