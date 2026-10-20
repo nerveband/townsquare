@@ -135,13 +135,20 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 	go func() {
 		defer close(l.done)
 		defer cli.RemoveEventHandler(hid)
+		defer func() {
+			if cli.Store.ID == nil {
+				cli.Disconnect() // gave up: don't leave a half-open login behind
+			}
+		}()
 		for round := 0; ctx.Err() == nil && cli.Store.ID == nil; round++ {
 			qrChan, err := cli.GetQRChannel(ctx)
 			if err != nil {
 				st.set(func(p *pairState) { p.State = "error"; p.Message = err.Error() })
 				return
 			}
-			if err := cli.ConnectContext(ctx); err != nil {
+			// ctx only limits how long we offer codes. Once linked, this same
+			// connection (and WhatsApp's reconnect right after linking) must outlive it.
+			if err := cli.ConnectContext(context.WithoutCancel(ctx)); err != nil {
 				st.set(func(p *pairState) { p.State = "error"; p.Message = err.Error() })
 				return
 			}

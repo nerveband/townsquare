@@ -6,6 +6,12 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.9.4] - 2026-10-20
+
+### Fixed
+- **WhatsApp connects right after you link it.** After linking from Settings, WhatsApp showed
+  "linked" but stayed "not connected" until Townsquare restarted. It now connects on its own.
+
 ## [v0.9.3] - 2026-10-20
 
 ### Fixed
