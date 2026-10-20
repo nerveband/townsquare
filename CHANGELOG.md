@@ -6,6 +6,12 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.9.3] - 2026-10-20
+
+### Fixed
+- **Typed codes for linking WhatsApp now work.** Asking for a code to type in (instead of
+  scanning the QR code) failed with "bad-request". You now get a working 8-character code.
+
 ## [v0.9.2] - 2026-10-20
 
 ### Fixed

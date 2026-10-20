@@ -83,7 +83,8 @@ func (l *Linker) requestCode() {
 	if phone == "" {
 		return
 	}
-	code, err := l.cli.PairPhone(l.ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Townsquare)")
+	// WhatsApp only accepts a common "Browser (OS)" name here; anything else is a 400.
+	code, err := l.cli.PairPhone(l.ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Mac OS)")
 	if err != nil {
 		l.st.set(func(p *pairState) { p.PairCode = ""; p.Message = "pairing code: " + err.Error() })
 		if !l.quiet {
@@ -144,12 +145,17 @@ func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet b
 				st.set(func(p *pairState) { p.State = "error"; p.Message = err.Error() })
 				return
 			}
-			l.requestCode()
+			asked := false
 			for item := range qrChan {
 				switch item.Event {
 				case whatsmeow.QRChannelEventCode:
 					code, exp := item.Code, time.Now().Add(item.Timeout).Unix()
 					st.set(func(p *pairState) { p.State = "code"; p.QR = code; p.Expires = exp })
+					// The first QR code means the connection is ready for a typed code too.
+					if !asked {
+						asked = true
+						l.requestCode()
+					}
 					if round == 0 && !quiet {
 						qrterminal.GenerateHalfBlock(code, qrterminal.L, os.Stdout)
 					}
