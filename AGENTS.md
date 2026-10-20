@@ -112,6 +112,17 @@ is the spec source · `tools/sign`, `tools/manifest`, `tools/mkdeb.py` release t
   Visual changes need a screenshot check; refresh `docs/screenshots/` (from demo mode) when the
   UI changes visibly. Fonts: Sofia Sans Extra Condensed 600 for headings only, Inter for UI,
   JetBrains Mono for times and labels; palette tokens in `app.css`. Dense by default.
+- WhatsApp linking (`internal/wa/pair.go`), learned the hard way:
+  - When the phone removes the device, whatsmeow deletes the session and marks the in-memory
+    device `Deleted` for good ("invalid use of deleted device"). `wa.ResetRemoved` swaps in a
+    fresh device; `StartLink` and logout call it. Never require a restart to relink.
+  - `PairPhone` (typed code) needs a real `Browser (OS)` display name such as `Chrome (Mac OS)`;
+    anything else is a 400 `bad-request`. Ask for the code after the first QR event. A
+    code-linked device shows on the phone under that name, not "Townsquare" (QR links do).
+  - The link context only limits how long codes are offered (10 minutes, `ends` in the link
+    state). The connection must outlive it (`context.WithoutCancel`), or the device links and
+    then drops, and the phone shows an error.
+  - Test the typed-code path only with the owner's number and OK: it pushes a prompt to that phone.
 
 ## 4b. Using the CLI as an agent
 
