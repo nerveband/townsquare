@@ -59,6 +59,9 @@ type Linker struct {
 
 // StartLink begins linking. Quiet suppresses terminal output (the web app uses it).
 func StartLink(ctx context.Context, cli *whatsmeow.Client, phone string, quiet bool) (*Linker, error) {
+	if _, err := ResetRemoved(cli); err != nil {
+		return nil, err
+	}
 	if cli.Store.ID != nil {
 		return nil, fmt.Errorf("already linked as %s", cli.Store.ID.User)
 	}

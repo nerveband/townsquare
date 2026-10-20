@@ -331,7 +331,21 @@ func (s *Server) whatsappQR(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) whatsappLogout(w http.ResponseWriter, r *http.Request) {
-	if s.Demo || s.WA == nil || s.WA.Store.ID == nil {
+	if s.Demo || s.WA == nil {
+		failCode(w, 409, "conflict", errors.New("WhatsApp isn't linked"))
+		return
+	}
+	// The phone removed this device: clear the dead session so linking works again.
+	if reset, err := wa.ResetRemoved(s.WA); err != nil {
+		fail(w, 500, err)
+		return
+	} else if reset {
+		s.setConnected(false)
+		s.DB.Log(r.Context(), actorOf(r), "cleared the removed WhatsApp link")
+		s.whatsappState(w, r)
+		return
+	}
+	if s.WA.Store.ID == nil {
 		failCode(w, 409, "conflict", errors.New("WhatsApp isn't linked"))
 		return
 	}

@@ -4272,7 +4272,7 @@
       "$ref": "#/components/responses/E409"
      }
     },
-    "description": "Admin. Removes this linked device from your WhatsApp account.",
+    "description": "Admin. Removes this linked device from your WhatsApp account. If the phone already removed it, this clears the dead link so you can link again.",
     "operationId": "unlink_whatsapp",
     "x-cli": {
      "name": "whatsapp logout",

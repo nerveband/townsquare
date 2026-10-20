@@ -271,7 +271,7 @@ paths = {
         desc="Admin. Then show GET /whatsapp/qr.png and scan it in WhatsApp: Settings > Linked devices > Link a device. Codes refresh for up to 10 minutes.", errs=(401, 403, 409))},
     "/whatsapp/qr.png": {"get": {"tags": ["WhatsApp"], "summary": "WhatsApp link QR code", "operationId": "whatsapp_qr",
         "description": "Admin. PNG of the current link QR while linking.", "responses": {"200": {"description": "image/png"}, "404": {"$ref": "#/components/responses/E404"}}}},
-    "/whatsapp/logout": {"post": op("WhatsApp", "Unlink WhatsApp", resp(ref("WhatsAppState")), desc="Admin. Removes this linked device from your WhatsApp account.", errs=(401, 403, 409))},
+    "/whatsapp/logout": {"post": op("WhatsApp", "Unlink WhatsApp", resp(ref("WhatsAppState")), desc="Admin. Removes this linked device from your WhatsApp account. If the phone already removed it, this clears the dead link so you can link again.", errs=(401, 403, 409))},
     "/telegram/app": {"post": op("Telegram", "Use your own Telegram app id", resp(ref("TelegramState")), obj({"api_id": S, "api_hash": S}, ["api_id", "api_hash"]),
         desc="Admin. Optional: releases include Townsquare's shared app id (updated over the air). Saves your own api_id and api_hash from my.telegram.org instead. Log out of Telegram first. Telegram restarts to use it (the response is then {\"ok\": true, \"restarting\": true}).", errs=(400, 401, 403, 409)),
                       "delete": op("Telegram", "Use the shared Telegram app id", resp(ref("TelegramState")), desc="Admin. Removes your own app id. Log out of Telegram first.", errs=(401, 403, 409))},

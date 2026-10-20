@@ -6,6 +6,17 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Fixed
+- **Re-linking WhatsApp after you remove Townsquare on your phone.** If you removed Townsquare
+  under Linked devices (for example to move to WhatsApp Business), Link WhatsApp showed
+  "invalid use of deleted device" instead of a QR code, and Unlink said "WhatsApp isn't linked".
+  Now a removed device is treated as not linked: Link WhatsApp gives a fresh QR code (or typed
+  code) right away, and Unlink clears the old link. No restart needed.
+
+### API changes
+- `POST /whatsapp/logout` now also works after the phone removed the device: it clears the dead
+  link and returns the not-linked status instead of a 409.
+
 ## [v0.9.0] - 2026-10-08
 
 ### Added

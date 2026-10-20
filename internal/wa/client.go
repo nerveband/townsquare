@@ -66,3 +66,22 @@ func ConnectPaired(ctx context.Context, cli *whatsmeow.Client) error {
 	}
 	return nil
 }
+
+// ResetRemoved swaps a dead device for a fresh, unlinked one. When the phone
+// removes Townsquare under Linked devices, whatsmeow deletes the session and
+// marks the in-memory device as deleted for good: every later connect fails
+// with "invalid use of deleted device". The device is reset in place, so the
+// client and everything holding it (event handlers, app-state sync) keep
+// working and the next link starts from scratch. It reports whether it reset.
+func ResetRemoved(cli *whatsmeow.Client) (bool, error) {
+	if cli == nil || cli.Store == nil || !cli.Store.Deleted {
+		return false, nil
+	}
+	c, ok := cli.Store.Container.(*sqlstore.Container)
+	if !ok {
+		return false, fmt.Errorf("can't reset the WhatsApp session; restart Townsquare")
+	}
+	cli.Disconnect()
+	*cli.Store = *c.NewDevice()
+	return true, nil
+}
