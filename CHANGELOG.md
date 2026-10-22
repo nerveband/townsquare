@@ -6,6 +6,8 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.12.0] - 2026-10-22
+
 ### Added
 - **The Mac app now carries its own ffmpeg.** Videos and voice notes no longer depend on ffmpeg
   from Homebrew, so updating other programs on your Mac can't break them. Townsquare uses the
