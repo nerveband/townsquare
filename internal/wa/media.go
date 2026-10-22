@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"mime"
@@ -49,7 +50,7 @@ func Convert(ctx context.Context, kind, in string) (*Media, error) {
 			}
 			break
 		}
-		if err := ff(ctx, "-i", in, "-vf", "scale='min(1600,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease", "-q:v", "3", m.Path); err != nil {
+		if err := ff(ctx, append([]string{"-i", in}, imageEncode(m.Path)...)...); err != nil {
 			return nil, err
 		}
 	case "video":
@@ -57,9 +58,7 @@ func Convert(ctx context.Context, kind, in string) (*Media, error) {
 			return nil, ErrNoFFmpeg
 		}
 		m.Path, m.Mime = filepath.Join(dir, "video.mp4"), "video/mp4"
-		if err := ff(ctx, "-i", in, "-vf", "scale='min(1280,iw)':'min(1280,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
-			"-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p", "-profile:v", "main",
-			"-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", m.Path); err != nil {
+		if err := ff(ctx, append([]string{"-i", in}, videoEncode(m.Path)...)...); err != nil {
 			return nil, err
 		}
 	case "voice":
@@ -67,7 +66,7 @@ func Convert(ctx context.Context, kind, in string) (*Media, error) {
 			return nil, ErrNoFFmpeg
 		}
 		m.Path, m.Mime = filepath.Join(dir, "voice.ogg"), "audio/ogg; codecs=opus"
-		if err := ff(ctx, "-i", in, "-vn", "-ac", "1", "-ar", "48000", "-c:a", "libopus", "-b:a", "32k", "-application", "voip", m.Path); err != nil {
+		if err := ff(ctx, append([]string{"-i", in}, voiceEncode(m.Path)...)...); err != nil {
 			return nil, err
 		}
 	case "audio", "document":
@@ -151,22 +150,29 @@ func ff(ctx context.Context, args ...string) error {
 	return nil
 }
 
-func probe(ctx context.Context, m *Media) {
+func probe(ctx context.Context, m *Media) { _ = probeErr(ctx, m) }
+
+// probeErr reads size and duration with ffprobe and says why when it can't.
+func probeErr(ctx context.Context, m *Media) error {
 	bin := Tool("ffprobe")
 	if bin == "" {
-		return
+		return errors.New("ffprobe isn't installed")
 	}
 	out, err := exec.CommandContext(ctx, bin, "-v", "error", "-show_entries", "format=duration:stream=width,height",
 		"-of", "json", m.Path).Output()
 	if err != nil {
-		return
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return fmt.Errorf("ffprobe: %v: %s", err, strings.TrimSpace(string(ee.Stderr)))
+		}
+		return fmt.Errorf("ffprobe: %v", err)
 	}
 	var p struct {
 		Streams []struct{ Width, Height int } `json:"streams"`
 		Format  struct{ Duration string }     `json:"format"`
 	}
-	if json.Unmarshal(out, &p) != nil {
-		return
+	if err := json.Unmarshal(out, &p); err != nil {
+		return fmt.Errorf("ffprobe: unreadable answer: %v", err)
 	}
 	for _, s := range p.Streams {
 		if s.Width > 0 {
@@ -177,6 +183,7 @@ func probe(ctx context.Context, m *Media) {
 	if d, err := strconv.ParseFloat(p.Format.Duration, 64); err == nil {
 		m.Seconds = int(math.Max(1, math.Round(d)))
 	}
+	return nil
 }
 
 // waveform returns 64 loudness samples (0..100) for the voice-note bubble.

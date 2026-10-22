@@ -220,6 +220,19 @@ Update client. `PATCH /api/v1/clients/{id}` · idempotent
 townsquare clients update 2 --quiet-start 22:00 --quiet-end 06:00 --timezone America/New_York
 ```
 
+### ffmpeg
+
+.
+
+#### `townsquare ffmpeg get`
+
+Test ffmpeg now. `GET /api/v1/ffmpeg` · read_only
+
+```sh
+townsquare ffmpeg get
+townsquare ffmpeg get --fields ok,path,version,error
+```
+
 ### history
 
 Who changed what; undo and redo.

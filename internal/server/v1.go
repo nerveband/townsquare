@@ -44,6 +44,7 @@ func (s *Server) v1Mux() *http.ServeMux {
 	})
 
 	m.HandleFunc("GET /api/v1/status", s.v1Status)
+	m.HandleFunc("GET /api/v1/ffmpeg", s.ffmpegNow)
 	m.HandleFunc("GET /api/v1/update", s.updateState)
 	m.HandleFunc("POST /api/v1/update/check", s.updateCheck)
 	m.HandleFunc("POST /api/v1/update/install", s.updateInstall)
@@ -176,6 +177,9 @@ func (s *Server) v1Status(w http.ResponseWriter, r *http.Request) {
 		"sent_today": s.DB.SentToday(ctx, set["timezone"]), "daily_cap": atoi(set["daily_cap"], 100),
 		"undo": u, "redo": re, "now": time.Now().UTC().Format(time.RFC3339),
 		"version": version.Version, "commit": version.Commit, "demo": s.Demo,
+	}
+	if f := s.ffmpegLast(); f != nil {
+		out["ffmpeg"] = f
 	}
 	if k := keyOf(r); k != nil {
 		out["key"] = map[string]string{"name": k.Name, "scope": k.Scope}

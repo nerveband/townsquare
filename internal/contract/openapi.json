@@ -124,6 +124,47 @@
     }
    }
   },
+  "/ffmpeg": {
+   "get": {
+    "tags": [
+     "Status"
+    ],
+    "summary": "Test ffmpeg now",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FFmpeg"
+        }
+       }
+      }
+     },
+     "400": {
+      "$ref": "#/components/responses/E400"
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "404": {
+      "$ref": "#/components/responses/E404"
+     }
+    },
+    "description": "Runs a tiny real conversion with the ffmpeg Townsquare uses for photos, videos and voice notes (about a second). `ok` is false when it can't convert; `error` says why.",
+    "operationId": "test_ffmpeg_now",
+    "x-cli": {
+     "name": "ffmpeg get",
+     "effects": "read_only",
+     "examples": [
+      "townsquare ffmpeg get",
+      "townsquare ffmpeg get --fields ok,path,version,error"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
   "/settings": {
    "get": {
     "tags": [
@@ -5384,8 +5425,44 @@
      "demo": {
       "type": "boolean",
       "description": "Demo mode: sample data, nothing is ever sent"
+     },
+     "ffmpeg": {
+      "$ref": "#/components/schemas/FFmpeg",
+      "description": "Latest background ffmpeg check (every 10 minutes); absent until the first one finishes"
      }
     }
+   },
+   "FFmpeg": {
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "description": "A real photo, video and voice-note conversion worked"
+     },
+     "path": {
+      "type": "string",
+      "description": "The ffmpeg that was tested (empty = none found)"
+     },
+     "ffprobe_path": {
+      "type": "string"
+     },
+     "bundled": {
+      "type": "boolean",
+      "description": "It is the copy that ships with Townsquare, not one from PATH or Homebrew"
+     },
+     "version": {
+      "type": "string"
+     },
+     "error": {
+      "type": "string",
+      "description": "Why it failed, in ffmpeg's own words"
+     },
+     "checked": {
+      "type": "string",
+      "format": "date-time"
+     }
+    },
+    "description": "Result of a tiny real conversion: a photo to JPEG, a 1 second H.264 + AAC video, a voice note to Opus, and ffprobe."
    },
    "Settings": {
     "type": "object",

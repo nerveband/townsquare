@@ -15,7 +15,7 @@ Everything is also in the REST API (`/api/v1`); the CLI is generated from the sa
 1. On the Townsquare computer: `townsquare auth local --scope write` creates a key and saves
    the profile "local". Elsewhere: `townsquare auth login --url https://HOST --profile home < keyfile`
    (the key comes from stdin or `TOWNSQUARE_API_KEY`, never a flag).
-2. `townsquare doctor` checks the server, key, versions, WhatsApp, Telegram and what's due.
+2. `townsquare doctor` checks the server, key, versions, WhatsApp, ffmpeg (a real photo, video and voice conversion), Telegram and what's due.
    It exits 21 if a check fails; read the `hint` of each failed check.
 3. `townsquare schema` lists every command with flags, effects and errors (no network needed).
    `townsquare <resource> <verb> --help` shows flags and examples.

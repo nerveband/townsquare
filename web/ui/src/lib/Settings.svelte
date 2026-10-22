@@ -135,6 +135,10 @@
   }
   $effect(() => { if (tab === 'general' || tab === 'accounts') loadWA(); if (tab === 'general') loadUpd(); return () => clearTimeout(waTimer) })
   async function checkUpd() { updBusy = 'check'; try { upd = await api('POST', '/api/update/check') } catch (e) { toast(e.message) } finally { updBusy = '' } }
+  let ffm = $state(null)
+  let ffmBusy = $state(false)
+  async function testFF() { ffmBusy = true; try { ffm = await api('GET', '/api/ffmpeg') } catch (e) { toast(e.message) } finally { ffmBusy = false } }
+  $effect(() => { if (tab === 'general') testFF() })
   async function installUpd(force = false) {
     updBusy = 'install'
     try {
@@ -297,6 +301,12 @@
         </div>
         <p class="muted">Automatic updates are checked every 6 hours, signed and verified, and installed only when no post is due within 15 minutes{#if (upd.staged || upd.available) && upd.auto && upd.install_at} (next chance: {new Date(upd.install_at * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}){/if}.{#if upd.dev} This copy was built from source, so update it with git pull and a rebuild.{/if}</p>
       {/if}
+      <div class="accts">
+        <div class="st"><span class="dot" class:on={ffm?.ok}></span><b>Photos and video</b>
+          <span>{#if !ffm}testing ffmpeg…{:else if ffm.ok}ffmpeg {ffm.version} works{ffm.bundled ? ' (comes with Townsquare)' : ''}{:else}ffmpeg problem, videos and voice notes will fail{/if}</span>
+          <button class="lnk" onclick={testFF} disabled={ffmBusy}>{ffmBusy ? 'Testing…' : 'Test again'}</button></div>
+      </div>
+      {#if ffm && !ffm.ok}<p class="err">{ffm.error}{ffm.path ? ` (${ffm.path})` : ''}. Reinstall the Townsquare app, or repair the ffmpeg this computer uses.</p>{/if}
 
       <h3>Safe mode</h3>
       <div class="safe" class:on={app.settings.safe_mode === '1'}>

@@ -53,6 +53,7 @@ type Server struct {
 	conn      connInfo        // when each account last connected and synced
 	accts     accountSet      // extra WhatsApp and Telegram accounts (most people have none)
 	baseCtx   context.Context // lives as long as the server
+	ff        ffmpegState     // latest ffmpeg health check
 }
 
 func (s *Server) Handler() http.Handler {
@@ -120,6 +121,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/stats/export.csv", s.statsExport)
 	m.HandleFunc("POST /api/stats/share", s.statsShare)
 	m.HandleFunc("GET /api/update", s.updateState)
+	m.HandleFunc("GET /api/ffmpeg", s.ffmpegNow)
 	m.HandleFunc("POST /api/update/check", s.updateCheck)
 	m.HandleFunc("POST /api/update/install", s.updateInstall)
 	m.HandleFunc("GET /api/autostart", s.autostartState)
@@ -353,13 +355,17 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	drafts, _ := s.DB.Posts(ctx, "draft")
 	waLists, _ := s.DB.WALists(ctx)
-	writeJSON(w, map[string]any{
+	state := map[string]any{
 		"settings": settings, "tags": s.DB.Tags(ctx), "clients": s.DB.Clients(ctx), "sets": s.DB.Sets(ctx), "wa_lists": waLists,
 		"connected": s.isConnected(), "phone": phone, "sending": sending,
 		"sent_today": s.DB.SentToday(ctx, settings["timezone"]),
 		"undo":       u, "redo": re, "drafts": drafts, "version": version.Version, "demo": s.Demo,
 		"telegram": s.TG.State().Status, "telegram_user": s.TG.State().User,
-	})
+	}
+	if f := s.ffmpegLast(); f != nil {
+		state["ffmpeg"] = f
+	}
+	writeJSON(w, state)
 }
 
 // ---------- targets ----------

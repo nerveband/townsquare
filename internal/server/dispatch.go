@@ -22,6 +22,7 @@ import (
 
 // Run is the send loop. It checks for due sends every 15 seconds.
 func (s *Server) Run(ctx context.Context) {
+	go s.runFFmpegChecks(ctx)
 	t := time.NewTicker(15 * time.Second)
 	defer t.Stop()
 	for {

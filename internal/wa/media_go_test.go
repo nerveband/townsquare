@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Photos must work on installs without ffmpeg (the Mac app and Windows exe don't ship it).
+// Photos must work on installs without ffmpeg (the Windows exe and plain binaries may not have it).
 func TestGoImageWithoutFFmpeg(t *testing.T) {
 	dir := t.TempDir()
 	src := image.NewNRGBA(image.Rect(0, 0, 3000, 1500))

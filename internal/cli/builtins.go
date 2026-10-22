@@ -387,6 +387,26 @@ func cmdDoctor(o *opts) error {
 		add("server", true, fmt.Sprintf("%s answers (Townsquare %v, key scope %v)", conn.URL.Value, st["version"], scopeOf(st)), "")
 		add("versions match", fmt.Sprint(st["version"]) == env.Version, fmt.Sprintf("server %v, CLI %s", st["version"], env.Version), "Run `townsquare update` so the CLI matches the server.")
 		add("whatsapp", st["connected"] == true, fmt.Sprintf("connected: %v", st["connected"]), "Run `townsquare whatsapp get`, then `townsquare whatsapp link --wait`.")
+		ff, err := getJSON(o, conn, "/ffmpeg")
+		switch {
+		case err != nil:
+			add("ffmpeg", false, "couldn't run the check: "+asError(err).Message, "Update the server (`townsquare update`) or check the server log.")
+		case ff["ok"] == true:
+			where := "from PATH or Homebrew"
+			if ff["bundled"] == true {
+				where = "bundled with Townsquare"
+			}
+			add("ffmpeg", true, fmt.Sprintf("%v, version %v (%s); photo, video and voice conversion work", ff["path"], ff["version"], where), "")
+		default:
+			path := fmt.Sprint(ff["path"])
+			if path == "" {
+				path = "no ffmpeg found"
+			}
+			if v := fmt.Sprint(ff["version"]); v != "" {
+				path += " (version " + v + ")"
+			}
+			add("ffmpeg", false, fmt.Sprintf("%s: %v", path, ff["error"]), "Videos and voice notes will fail. Reinstall the Townsquare app (it includes ffmpeg), or repair the ffmpeg this computer uses.")
+		}
 		add("safe mode", true, fmt.Sprintf("on: %v (only allowlisted chats receive posts)", st["safe_mode"]), "")
 		if tg, err := getJSON(o, conn, "/telegram"); err == nil {
 			add("telegram", true, fmt.Sprintf("status: %v", tg["status"]), "")

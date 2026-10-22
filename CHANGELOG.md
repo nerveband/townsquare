@@ -6,6 +6,22 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+### Added
+- **The Mac app now carries its own ffmpeg.** Videos and voice notes no longer depend on ffmpeg
+  from Homebrew, so updating other programs on your Mac can't break them. Townsquare uses the
+  built-in copy first and only looks elsewhere if it's missing. It comes with the Mac app
+  download, so install the new app once to get it (Townsquare's own updates don't replace it).
+- **Townsquare tests ffmpeg for you.** It converts a tiny photo, video and voice note every 10
+  minutes. If that ever fails, **Settings → General** shows the problem in plain words and
+  `townsquare doctor` turns red, so you hear about it before a post with a video is due.
+  **Test again** runs the test right now.
+
+### API changes
+- New `GET /ffmpeg` (CLI: `townsquare ffmpeg get`): runs the ffmpeg test now and returns `ok`,
+  `path`, `ffprobe_path`, `bundled`, `version`, `error`, `checked`.
+- `GET /status` has a new `ffmpeg` field with the latest background test (same shape).
+- `townsquare doctor` has a new `ffmpeg` check.
+
 ## [v0.11.0] - 2026-10-21
 
 ### Added
