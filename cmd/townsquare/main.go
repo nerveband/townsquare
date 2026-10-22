@@ -72,6 +72,7 @@ func main() {
 
 	cfg, err := appconfig.Load(*dataDir)
 	check(err)
+	wa.ManagedFFmpegDir = filepath.Join(*dataDir, "ffmpeg") // Townsquare's own downloaded ffmpeg (demo mode never downloads)
 	if !appMode && cli.Handles(args) {
 		os.Exit(cli.Run(cli.Env{Version: version.Version, DataDir: *dataDir, LocalURL: "http://" + localAddr(cfg.ListenAddr()),
 			MakeKey: func(name, scope string) (string, error) {

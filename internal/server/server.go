@@ -122,6 +122,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/stats/share", s.statsShare)
 	m.HandleFunc("GET /api/update", s.updateState)
 	m.HandleFunc("GET /api/ffmpeg", s.ffmpegNow)
+	m.HandleFunc("POST /api/ffmpeg/install", s.ffmpegInstall)
 	m.HandleFunc("POST /api/update/check", s.updateCheck)
 	m.HandleFunc("POST /api/update/install", s.updateInstall)
 	m.HandleFunc("GET /api/autostart", s.autostartState)

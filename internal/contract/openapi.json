@@ -165,6 +165,44 @@
     }
    }
   },
+  "/ffmpeg/install": {
+   "post": {
+    "tags": [
+     "Status"
+    ],
+    "summary": "Download ffmpeg now",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FFmpeg"
+        }
+       }
+      }
+     },
+     "401": {
+      "$ref": "#/components/responses/E401"
+     },
+     "422": {
+      "$ref": "#/components/responses/E422"
+     }
+    },
+    "description": "Downloads Townsquare's own ffmpeg and ffprobe (about 60 MB), checks them against the SHA-256 built into Townsquare, makes sure they start, then tests them. Townsquare does this by itself at start-up; use this to try again after a failure. 422 `unavailable` when there is no download for this computer, `fetch_failed` when it didn't work (the message says why).",
+    "operationId": "download_ffmpeg_now",
+    "x-cli": {
+     "name": "ffmpeg install",
+     "effects": "idempotent",
+     "examples": [
+      "townsquare ffmpeg install --timeout 3m",
+      "townsquare ffmpeg install --dry-run"
+     ],
+     "output_kind": "data",
+     "cardinality": "single"
+    }
+   }
+  },
   "/settings": {
    "get": {
     "tags": [
@@ -5448,7 +5486,7 @@
      },
      "bundled": {
       "type": "boolean",
-      "description": "It is the copy that ships with Townsquare, not one from PATH or Homebrew"
+      "description": "It is Townsquare's own copy (downloaded and checked by Townsquare), not one from PATH or Homebrew"
      },
      "version": {
       "type": "string"
@@ -5460,6 +5498,28 @@
      "checked": {
       "type": "string",
       "format": "date-time"
+     },
+     "install": {
+      "type": "object",
+      "properties": {
+       "state": {
+        "type": "string",
+        "enum": [
+         "idle",
+         "downloading",
+         "failed"
+        ]
+       },
+       "available": {
+        "type": "boolean",
+        "description": "Townsquare has a download for this computer (Mac and Linux, amd64 and arm64)"
+       },
+       "error": {
+        "type": "string",
+        "description": "Why the last download failed"
+       }
+      },
+      "description": "Townsquare's own copy: downloaded by itself at start-up, checked against a built-in SHA-256, and used before PATH or Homebrew."
      }
     },
     "description": "Result of a tiny real conversion: a photo to JPEG, a 1 second H.264 + AAC video, a voice note to Opus, and ffprobe."

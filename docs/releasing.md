@@ -51,17 +51,21 @@ amd64/arm64/armv7, windows amd64), `Townsquare-vX.Y.Z-mac.dmg`, `.deb` for amd64
 `SHA256SUMS`, and the signed `latest.json` (+ `.sig`) with the newest changelog sections and the
 shared Telegram app id.
 
-## ffmpeg inside the Mac app
+## ffmpeg: downloaded, pinned, tested
 
-`scripts/package.sh` puts a static ffmpeg and ffprobe (FFmpeg 9.0.2, GPL v3, Apple silicon and
-Intel in one file each) into `Townsquare.app/Contents/Resources/bin`, with the license notice in
-`Contents/Resources/ffmpeg-licenses` (from `third_party/ffmpeg`). `scripts/fetch-ffmpeg.sh` downloads
-them from ffmpeg.martin-riedl.de, checks the SHA-256 sums pinned in that script and caches them in
-`~/.cache/townsquare/ffmpeg`. Packaging fails if either file links anything outside `/usr/lib` and
-`/System/Library`. Townsquare prefers these over PATH and Homebrew (`wa.ToolSource`); updates replace
-only the program, so a new ffmpeg reaches installs with the next Mac app download, not a self-update.
-To change builds, edit the version, ids and sums in `fetch-ffmpeg.sh` and update `NOTICE.txt`.
-The server tests ffmpeg with a real conversion every 10 minutes (`GET /ffmpeg`, `townsquare doctor`).
+Townsquare downloads its own static ffmpeg and ffprobe (FFmpeg 9.0.2, GPL v3, Martin Riedl's builds
+from ffmpeg.martin-riedl.de) into `<data folder>/ffmpeg` on macOS and Linux (amd64, arm64); nothing is
+in the dmg. `internal/wa/ffinstall.go` holds the pinned build ids and SHA-256 sums; the server
+downloads at start-up when the folder lacks the pinned build, verifies the sums, runs `-version` on
+the files and only then moves them into place (a failed or unrunnable download never replaces a working
+copy; a bad checksum or unrunnable build is not retried until the pin changes, a network failure is
+retried every 10 minutes). `wa.ToolSource` prefers that copy over PATH and Homebrew. The notice and GPL
+text (`internal/wa/ffnotice`) are embedded and written next to the download.
+To change builds: edit the id and sums in `ffPins`, update `NOTICE.txt`, check the new files run and
+link only system libraries (`otool -L` on macOS, DT_NEEDED on Linux), and release: installs fetch the
+new build after their next Townsquare update. If the builder's site disappears, mirror the zips on a
+GitHub release and change `ffBaseURL`.
+The server also tests ffmpeg with a real conversion every 10 minutes (`GET /ffmpeg`, `townsquare doctor`).
 
 ## Production runs the released Mac app (dogfooding)
 

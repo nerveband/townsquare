@@ -54,8 +54,8 @@ func TestCheckFFmpegVersionOKButEncodeFails(t *testing.T) {
 	}
 }
 
-// The copy that ships with the app beats PATH and Homebrew. Only a missing copy falls back.
-func TestToolPrefersBundled(t *testing.T) {
+// Townsquare's own copy beats PATH and Homebrew. Only a missing copy falls back.
+func TestToolPrefersOwnCopy(t *testing.T) {
 	dir := fakeTools(t, `exit 0`)
 	onPath := fakeTools(t, `exit 0`)
 	t.Setenv("PATH", onPath+string(os.PathListSeparator)+os.Getenv("PATH"))

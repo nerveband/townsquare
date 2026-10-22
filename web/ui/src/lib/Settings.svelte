@@ -136,9 +136,11 @@
   $effect(() => { if (tab === 'general' || tab === 'accounts') loadWA(); if (tab === 'general') loadUpd(); return () => clearTimeout(waTimer) })
   async function checkUpd() { updBusy = 'check'; try { upd = await api('POST', '/api/update/check') } catch (e) { toast(e.message) } finally { updBusy = '' } }
   let ffm = $state(null)
-  let ffmBusy = $state(false)
-  async function testFF() { ffmBusy = true; try { ffm = await api('GET', '/api/ffmpeg') } catch (e) { toast(e.message) } finally { ffmBusy = false } }
+  let ffmBusy = $state('')
+  async function testFF() { ffmBusy = ffmBusy || 'test'; try { ffm = await api('GET', '/api/ffmpeg') } catch (e) { toast(e.message) } finally { if (ffmBusy === 'test') ffmBusy = '' } }
+  async function getFF() { ffmBusy = 'get'; try { ffm = await api('POST', '/api/ffmpeg/install') } catch (e) { toast(e.message); testFF() } finally { ffmBusy = '' } }
   $effect(() => { if (tab === 'general') testFF() })
+  $effect(() => { if (tab !== 'general' || ffm?.install?.state !== 'downloading' || ffmBusy === 'get') return; const t = setTimeout(testFF, 3000); return () => clearTimeout(t) })
   async function installUpd(force = false) {
     updBusy = 'install'
     try {
@@ -303,10 +305,12 @@
       {/if}
       <div class="accts">
         <div class="st"><span class="dot" class:on={ffm?.ok}></span><b>Photos and video</b>
-          <span>{#if !ffm}testing ffmpeg…{:else if ffm.ok}ffmpeg {ffm.version} works{ffm.bundled ? ' (comes with Townsquare)' : ''}{:else}ffmpeg problem, videos and voice notes will fail{/if}</span>
-          <button class="lnk" onclick={testFF} disabled={ffmBusy}>{ffmBusy ? 'Testing…' : 'Test again'}</button></div>
+          <span>{#if !ffm}testing ffmpeg…{:else if ffm.ok}ffmpeg {ffm.version} works ({ffm.bundled ? 'downloaded by Townsquare' : 'from this computer'}){#if ffm.install?.state === 'downloading' && !ffm.bundled} · getting Townsquare's own copy…{/if}{:else}ffmpeg problem, videos and voice notes will fail{/if}</span>
+          <button class="lnk" onclick={testFF} disabled={!!ffmBusy}>{ffmBusy === 'test' ? 'Testing…' : 'Test again'}</button>
+          {#if ffm?.install?.available && !ffm.bundled && ffm.install.state !== 'downloading'}<button class="lnk" onclick={getFF} disabled={!!ffmBusy}>{ffmBusy === 'get' ? 'Downloading…' : 'Download ffmpeg'}</button>{/if}</div>
       </div>
-      {#if ffm && !ffm.ok}<p class="err">{ffm.error}{ffm.path ? ` (${ffm.path})` : ''}. Reinstall the Townsquare app, or repair the ffmpeg this computer uses.</p>{/if}
+      {#if ffm && !ffm.ok}<p class="err">{ffm.error}{ffm.path ? ` (${ffm.path})` : ''}. {ffm.install?.available ? 'Use Download ffmpeg to get Townsquare’s own copy.' : 'Install or repair ffmpeg on this computer.'}</p>{/if}
+      {#if ffm?.install?.state === 'failed' && ffm.install.error}<p class="err">Couldn’t download ffmpeg: {ffm.install.error}</p>{/if}
 
       <h3>Safe mode</h3>
       <div class="safe" class:on={app.settings.safe_mode === '1'}>

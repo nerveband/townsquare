@@ -24,9 +24,11 @@ schemas = {
                    "ffmpeg": {**ref("FFmpeg"), "description": "Latest background ffmpeg check (every 10 minutes); absent until the first one finishes"}}),
     "FFmpeg": obj({"ok": {**B, "description": "A real photo, video and voice-note conversion worked"},
                    "path": {**S, "description": "The ffmpeg that was tested (empty = none found)"},
-                   "ffprobe_path": S, "bundled": {**B, "description": "It is the copy that ships with Townsquare, not one from PATH or Homebrew"},
+                   "ffprobe_path": S, "bundled": {**B, "description": "It is Townsquare's own copy (downloaded and checked by Townsquare), not one from PATH or Homebrew"},
                    "version": S, "error": {**S, "description": "Why it failed, in ffmpeg's own words"},
-                   "checked": {**S, "format": "date-time"}},
+                   "checked": {**S, "format": "date-time"},
+                   "install": obj({"state": {**S, "enum": ["idle", "downloading", "failed"]}, "available": {**B, "description": "Townsquare has a download for this computer (Mac and Linux, amd64 and arm64)"},
+                                   "error": {**S, "description": "Why the last download failed"}}, desc="Townsquare's own copy: downloaded by itself at start-up, checked against a built-in SHA-256, and used before PATH or Homebrew.")},
                   desc="Result of a tiny real conversion: a photo to JPEG, a 1 second H.264 + AAC video, a voice note to Opus, and ffprobe."),
     "Settings": obj({k: S for k in ["timezone", "safe_mode", "gap_min", "gap_max", "daily_cap", "quiet_start", "quiet_end", "grace_min", "tg_queue_hours", "stats_people", "auto_update", "send_delay", "alert_unlink"]},
                     desc="All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope. alert_unlink \"1\" (test feature, off by default) messages your Telegram Saved Messages when WhatsApp unlinks."),
@@ -176,6 +178,7 @@ STATQ = [q("days", I, "7, 30 (default) or 90; any 1 to 366"), q("to", desc="Last
 paths = {
     "/status": {"get": op("Status", "Get status", resp(ref("Status")), desc="Connection, safe mode, today's count, time zone, and your key's scope. Call this first.")},
     "/ffmpeg": {"get": op("Status", "Test ffmpeg now", resp(ref("FFmpeg")), desc="Runs a tiny real conversion with the ffmpeg Townsquare uses for photos, videos and voice notes (about a second). `ok` is false when it can't convert; `error` says why.")},
+    "/ffmpeg/install": {"post": op("Status", "Download ffmpeg now", resp(ref("FFmpeg")), desc="Downloads Townsquare's own ffmpeg and ffprobe (about 60 MB), checks them against the SHA-256 built into Townsquare, makes sure they start, then tests them. Townsquare does this by itself at start-up; use this to try again after a failure. 422 `unavailable` when there is no download for this computer, `fetch_failed` when it didn't work (the message says why).", errs=(401, 422))},
     "/settings": {"get": op("Settings", "Get settings", resp(ref("Settings"))),
                   "patch": op("Settings", "Update settings", OKW, ref("Settings"), errs=(400, 401, 403))},
     "/targets": {"get": op("Targets", "List targets", {**resp(arr(ref("Target"))), "headers": {"X-Total-Count": {"description": "Matches before limit", "schema": I}}}, params=[
@@ -325,6 +328,7 @@ R, IDEM, NON = "read_only", "idempotent", "non_idempotent"
 CLI = {
     ("get", "/status"): dict(name="status get", effects=R, ex=["townsquare status get", "townsquare status get --fields connected,safe_mode"]),
     ("get", "/ffmpeg"): dict(name="ffmpeg get", effects=R, ex=["townsquare ffmpeg get", "townsquare ffmpeg get --fields ok,path,version,error"]),
+    ("post", "/ffmpeg/install"): dict(name="ffmpeg install", effects=IDEM, ex=["townsquare ffmpeg install --timeout 3m", "townsquare ffmpeg install --dry-run"]),
     ("get", "/settings"): dict(name="settings get", effects=R, ex=["townsquare settings get --fields timezone,quiet_start,quiet_end"]),
     ("patch", "/settings"): dict(name="settings update", effects=IDEM, ex=["townsquare settings update --quiet-start 22:00 --quiet-end 06:30", "townsquare settings update --safe-mode 1"]),
     ("get", "/targets"): dict(name="targets list", effects=R, card="unbounded", page=True, ex=["townsquare targets list --kind group,announce --allowed true --limit 20", "townsquare targets list --q isla --fields jid,name,allowed", "townsquare targets list --list favorites --fields jid,name"]),

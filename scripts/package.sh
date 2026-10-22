@@ -49,22 +49,6 @@ nohup "$DIR/townsquare-server" >>"$HOME/.townsquare/app.log" 2>&1 &
 SH
 chmod 755 "$APP/Contents/MacOS/Townsquare"
 cp assets/brand/Townsquare.icns "$APP/Contents/Resources/Townsquare.icns"
-# Static ffmpeg and ffprobe inside the app (Apple silicon + Intel in one file each), so
-# Homebrew upgrades can't break media. Townsquare prefers these over PATH.
-FF="$(scripts/fetch-ffmpeg.sh)"
-mkdir -p "$APP/Contents/Resources/bin" "$APP/Contents/Resources/ffmpeg-licenses"
-for t in ffmpeg ffprobe; do
-  lipo -create -output "$APP/Contents/Resources/bin/$t" "$FF/arm64/$t" "$FF/amd64/$t"
-  codesign --force --sign - "$APP/Contents/Resources/bin/$t" 2>/dev/null   # lipo drops the signature; arm64 won't run unsigned
-  # Self-contained: only Apple's own libraries, nothing from Homebrew.
-  if otool -arch all -L "$APP/Contents/Resources/bin/$t" | tail -n +2 | grep -E '^\s' | grep -vE '^\s+(/usr/lib/|/System/Library/)'; then
-    echo "✗ $t links libraries outside the system (listed above)"; exit 1
-  fi
-done
-cp third_party/ffmpeg/NOTICE.txt third_party/ffmpeg/COPYING.GPLv3 "$APP/Contents/Resources/ffmpeg-licenses/"
-cp "$FF/arm64/versions.txt" "$APP/Contents/Resources/ffmpeg-licenses/versions-arm64.txt"
-cp "$FF/amd64/versions.txt" "$APP/Contents/Resources/ffmpeg-licenses/versions-amd64.txt"
-if [ "$(uname -m)" = arm64 ]; then "$APP/Contents/Resources/bin/ffmpeg" -version | head -1; fi
 cat > "$APP/Contents/Info.plist" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

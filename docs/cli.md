@@ -233,6 +233,15 @@ townsquare ffmpeg get
 townsquare ffmpeg get --fields ok,path,version,error
 ```
 
+#### `townsquare ffmpeg install`
+
+Download ffmpeg now. `POST /api/v1/ffmpeg/install` · idempotent
+
+```sh
+townsquare ffmpeg install --timeout 3m
+townsquare ffmpeg install --dry-run
+```
+
 ### history
 
 Who changed what; undo and redo.

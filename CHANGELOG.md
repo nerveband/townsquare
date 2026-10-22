@@ -6,6 +6,31 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.12.1] - 2026-10-22
+
+### Changed
+- **The Mac app is small again (about 45 MB).** v0.12.0 packed ffmpeg inside the app, which made
+  the download four times bigger. Now Townsquare downloads its own ffmpeg (about 60 MB) once, by
+  itself, the first time it starts, on Macs and on Linux (amd64 and arm64). It checks the
+  download against a fingerprint built into Townsquare, makes sure it starts, and only then uses
+  it, before any ffmpeg from Homebrew or apt. Videos and voice notes keep working with the
+  ffmpeg already on your computer until then. Newer ffmpeg versions arrive with Townsquare's own
+  updates. If the download fails or can't run on your computer, nothing is replaced.
+- Windows and 32-bit Raspberry Pi still use the ffmpeg you installed yourself; the new ffmpeg
+  test in Settings and `townsquare doctor` covers them too.
+
+### Added
+- **Download ffmpeg** button in Settings → General (and `townsquare ffmpeg install`) to try the
+  download again after a failure. Settings and `townsquare doctor` say whether the download is
+  running, done or failed, and why.
+
+### API changes
+- New `POST /ffmpeg/install` (CLI: `townsquare ffmpeg install`): downloads, checks and tests
+  Townsquare's own ffmpeg now. Returns the same object as `GET /ffmpeg`.
+- The ffmpeg object (`GET /ffmpeg`, `ffmpeg` in `GET /status`) has a new `install` field
+  (`state` idle, downloading or failed; `available`; `error`). `bundled` now means "Townsquare's
+  own downloaded copy", not "inside the app".
+
 ## [v0.12.0] - 2026-10-22
 
 ### Added

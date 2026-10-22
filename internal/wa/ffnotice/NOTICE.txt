@@ -1,0 +1,48 @@
+FFmpeg in Townsquare
+====================
+
+Townsquare downloads two programs, ffmpeg and ffprobe, into this folder. It uses them to
+prepare photos, videos and voice notes before they are posted. They are separate programs
+that Townsquare starts as a child process; they are not linked into Townsquare itself.
+
+What they are
+-------------
+FFmpeg 9.0.2, static builds for macOS and Linux (Apple silicon, Intel, amd64, arm64) made
+by Martin Riedl (https://ffmpeg.martin-riedl.de, build script:
+https://git.martin-riedl.de/ffmpeg/build-script). Townsquare downloads them over HTTPS from
+that site and checks each file against a SHA-256 sum built into Townsquare before using it.
+
+They are configured with --enable-gpl --enable-version3, so they are licensed under the GNU
+General Public License version 3 (the full text is in COPYING.GPLv3 next to this file). They
+include libx264 and libx265 (GPL) and many other libraries, each under its own license (BSD,
+MIT, Apache 2.0, LGPL and others). Run `ffmpeg -version` for the exact configuration; the
+library versions of each build are listed on the builder's page above. The macOS builds load
+only Apple's own libraries; the Linux builds load only the standard system libraries (glibc,
+libstdc++, libgcc).
+
+FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
+FFmpeg is copyright (c) 2000-2026 the FFmpeg developers. https://ffmpeg.org
+
+Townsquare itself is licensed under the GNU Affero General Public License v3 (the LICENSE
+file in its source). It does not contain FFmpeg code.
+
+Source code
+-----------
+The source code for FFmpeg 9.0.2 is at https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+(https://ffmpeg.org/download.html). The build script that produced these binaries, with the
+exact versions and download links of every library, is at
+https://git.martin-riedl.de/ffmpeg/build-script.
+
+Written offer: for three years from the date you downloaded these programs, you can ask for
+a copy of the complete corresponding source code of the ffmpeg and ffprobe programs
+included here. Open an issue at https://github.com/nerveband/townsquare/issues and we will
+send it.
+
+You may replace these programs
+------------------------------
+Townsquare uses the ffmpeg and ffprobe in this folder when they are there. To use your own
+build instead, set TOWNSQUARE_FFMPEG_DIR to a folder that holds `ffmpeg` and `ffprobe`.
+
+No warranty
+-----------
+FFmpeg is provided without any warranty, to the extent permitted by law. See COPYING.GPLv3.

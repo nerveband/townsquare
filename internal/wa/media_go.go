@@ -17,29 +17,21 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-// ErrNoFFmpeg means a video or voice note needs ffmpeg, which isn't installed.
-var ErrNoFFmpeg = errors.New("videos and voice notes need ffmpeg, which isn't installed. " +
-	"The Mac app includes it: reinstall Townsquare from the latest download. Otherwise get it from https://ffmpeg.org/download.html " +
-	"(Mac: brew install ffmpeg, Windows: winget install ffmpeg, Linux: sudo apt install ffmpeg), then try again. Photos and files work without it")
+// ErrNoFFmpeg means a video or voice note needs ffmpeg, which isn't available.
+var ErrNoFFmpeg = errors.New("videos and voice notes need ffmpeg, which isn't available yet. " +
+	"On Mac and Linux Townsquare downloads its own copy by itself (Settings → General shows how that is going), so try again in a minute. " +
+	"Otherwise install it from https://ffmpeg.org/download.html (Mac: brew install ffmpeg, Windows: winget install ffmpeg, " +
+	"Linux: sudo apt install ffmpeg). Photos and files work without it")
 
-// BundledDirs lists where the ffmpeg that ships with Townsquare lives, best first.
-// The Mac app carries its own static ffmpeg and ffprobe in Contents/Resources/bin
-// (no Homebrew libraries involved, so a brew upgrade can't break it). Updates run
-// from ~/.townsquare/bin, so the installed app is looked up by its usual paths too.
-// TOWNSQUARE_FFMPEG_DIR overrides it (tests, and trying a different build).
-func BundledDirs() []string {
+// ownDirs lists where Townsquare's own ffmpeg lives, best first: TOWNSQUARE_FFMPEG_DIR
+// (tests, or trying a different build), then the copy Townsquare downloaded.
+func ownDirs() []string {
 	var dirs []string
 	if d := os.Getenv("TOWNSQUARE_FFMPEG_DIR"); d != "" {
 		dirs = append(dirs, d)
 	}
-	if runtime.GOOS == "darwin" {
-		if exe, err := os.Executable(); err == nil {
-			dirs = append(dirs, filepath.Join(filepath.Dir(exe), "..", "Resources", "bin"))
-		}
-		dirs = append(dirs, "/Applications/Townsquare.app/Contents/Resources/bin")
-		if home, err := os.UserHomeDir(); err == nil {
-			dirs = append(dirs, filepath.Join(home, "Applications", "Townsquare.app", "Contents", "Resources", "bin"))
-		}
+	if ManagedFFmpegDir != "" {
+		dirs = append(dirs, ManagedFFmpegDir)
 	}
 	return dirs
 }
@@ -49,17 +41,17 @@ func isFile(p string) bool {
 	return err == nil && !fi.IsDir()
 }
 
-// ToolSource finds ffmpeg or ffprobe and says whether it is the one that ships with
-// Townsquare. The bundled copy always wins over PATH and Homebrew; those are only
-// the fallback when it is missing (a bundled copy that is broken is reported, not
-// silently replaced). Apps opened from Finder or the Start menu get a short PATH, so
-// common install folders are checked too. "" = not installed.
-func ToolSource(name string) (path string, bundled bool) {
+// ToolSource finds ffmpeg or ffprobe and says whether it is Townsquare's own copy. That
+// copy always wins over PATH and Homebrew, which are only the fallback while it is
+// missing (one that is broken is reported by CheckFFmpeg, not silently replaced). Apps
+// opened from Finder or the Start menu get a short PATH, so common install folders are
+// checked too. "" = not installed.
+func ToolSource(name string) (path string, own bool) {
 	file := name
 	if runtime.GOOS == "windows" {
 		file += ".exe"
 	}
-	for _, d := range BundledDirs() {
+	for _, d := range ownDirs() {
 		if p := filepath.Join(d, file); isFile(p) {
 			return filepath.Clean(p), true
 		}

@@ -36,13 +36,14 @@ func voiceEncode(out string) []string {
 
 // FFmpegStatus is the result of CheckFFmpeg.
 type FFmpegStatus struct {
-	OK        bool   `json:"ok"`
-	Path      string `json:"path"`              // ffmpeg that was tested ("" = none found)
-	ProbePath string `json:"ffprobe_path"`      // ffprobe that was tested
-	Bundled   bool   `json:"bundled"`           // ffmpeg is the copy that ships with Townsquare
-	Version   string `json:"version"`           // e.g. 9.0.2
-	Error     string `json:"error,omitempty"`   // why it failed, with ffmpeg's own words
-	Checked   string `json:"checked,omitempty"` // when, RFC 3339 UTC
+	OK        bool          `json:"ok"`
+	Path      string        `json:"path"`              // ffmpeg that was tested ("" = none found)
+	ProbePath string        `json:"ffprobe_path"`      // ffprobe that was tested
+	Bundled   bool          `json:"bundled"`           // ffmpeg is Townsquare's own copy (downloaded by it), not PATH or Homebrew
+	Version   string        `json:"version"`           // e.g. 9.0.2
+	Error     string        `json:"error,omitempty"`   // why it failed, with ffmpeg's own words
+	Checked   string        `json:"checked,omitempty"` // when, RFC 3339 UTC
+	Install   FFmpegInstall `json:"install"`           // the download of Townsquare's own copy
 }
 
 var versionRE = regexp.MustCompile(`(?m)^ff(?:mpeg|probe) version (\S+)`)
@@ -53,6 +54,7 @@ var versionRE = regexp.MustCompile(`(?m)^ff(?:mpeg|probe) version (\S+)`)
 func CheckFFmpeg(ctx context.Context) FFmpegStatus {
 	st := FFmpegStatus{Checked: time.Now().UTC().Format(time.RFC3339)}
 	st.Path, st.Bundled = ToolSource("ffmpeg")
+	st.Install = CurrentInstall()
 	st.ProbePath = Tool("ffprobe")
 	fail := func(format string, a ...any) FFmpegStatus {
 		st.Error = fmt.Sprintf(format, a...)

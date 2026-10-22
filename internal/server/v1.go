@@ -45,6 +45,7 @@ func (s *Server) v1Mux() *http.ServeMux {
 
 	m.HandleFunc("GET /api/v1/status", s.v1Status)
 	m.HandleFunc("GET /api/v1/ffmpeg", s.ffmpegNow)
+	m.HandleFunc("POST /api/v1/ffmpeg/install", s.ffmpegInstall)
 	m.HandleFunc("GET /api/v1/update", s.updateState)
 	m.HandleFunc("POST /api/v1/update/check", s.updateCheck)
 	m.HandleFunc("POST /api/v1/update/install", s.updateInstall)

@@ -392,9 +392,9 @@ func cmdDoctor(o *opts) error {
 		case err != nil:
 			add("ffmpeg", false, "couldn't run the check: "+asError(err).Message, "Update the server (`townsquare update`) or check the server log.")
 		case ff["ok"] == true:
-			where := "from PATH or Homebrew"
-			if ff["bundled"] == true {
-				where = "bundled with Townsquare"
+			where := "Townsquare's own copy"
+			if ff["bundled"] != true {
+				where = "from PATH or Homebrew; Townsquare's own copy " + ffInstallNote(ff)
 			}
 			add("ffmpeg", true, fmt.Sprintf("%v, version %v (%s); photo, video and voice conversion work", ff["path"], ff["version"], where), "")
 		default:
@@ -405,7 +405,13 @@ func cmdDoctor(o *opts) error {
 			if v := fmt.Sprint(ff["version"]); v != "" {
 				path += " (version " + v + ")"
 			}
-			add("ffmpeg", false, fmt.Sprintf("%s: %v", path, ff["error"]), "Videos and voice notes will fail. Reinstall the Townsquare app (it includes ffmpeg), or repair the ffmpeg this computer uses.")
+			hint := "Videos and voice notes will fail. Run `townsquare ffmpeg install` to download Townsquare's own ffmpeg, or repair the ffmpeg this computer uses."
+			if in, _ := ff["install"].(map[string]any); in != nil && in["state"] == "downloading" {
+				hint = "Townsquare is downloading its own ffmpeg right now. Run `townsquare doctor` again in a minute."
+			} else if in != nil && in["available"] != true {
+				hint = "Videos and voice notes will fail. Install or repair ffmpeg on this computer (Windows: winget install ffmpeg, Linux: sudo apt install ffmpeg)."
+			}
+			add("ffmpeg", false, fmt.Sprintf("%s: %v", path, ff["error"]), hint)
 		}
 		add("safe mode", true, fmt.Sprintf("on: %v (only allowlisted chats receive posts)", st["safe_mode"]), "")
 		if tg, err := getJSON(o, conn, "/telegram"); err == nil {
@@ -450,6 +456,20 @@ func cmdDoctor(o *opts) error {
 		return nil
 	}
 	return out(o, res)
+}
+
+// ffInstallNote says in a few words how Townsquare's own ffmpeg download stands.
+func ffInstallNote(ff map[string]any) string {
+	in, _ := ff["install"].(map[string]any)
+	switch {
+	case in == nil || in["available"] != true:
+		return "isn't available for this computer"
+	case in["state"] == "downloading":
+		return "is downloading"
+	case in["state"] == "failed":
+		return fmt.Sprintf("failed to download (%v); run `townsquare ffmpeg install`", in["error"])
+	}
+	return "isn't downloaded yet"
 }
 
 func scopeOf(st map[string]any) any {
