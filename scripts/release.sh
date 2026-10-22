@@ -2,7 +2,7 @@
 # Cut a release: scripts/release.sh v0.6.0 [--dry-run]
 #  1. clean tree on master, in sync with origin
 #  2. CHANGELOG.md has a "## [v0.6.0]" section (move items out of Unreleased first)
-#  3. all checks pass
+#  3. all checks pass (skipped when `make check` already passed for this commit)
 #  4. build every download (scripts/package.sh): binaries, Mac dmg, .deb, signed latest.json
 #  5. tag, push the tag, create the GitHub release with the changelog notes
 set -euo pipefail
@@ -31,7 +31,17 @@ UNREL="$(awk '/^## \[Unreleased\]/ {on=1; next} on && /^## \[/ {exit} on {print}
 FIRST="$(grep -m1 -oE '^## \[v[^]]+\]' CHANGELOG.md || true)"
 [ "$FIRST" = "## [$V]" ] || { echo "the newest section in CHANGELOG.md must be [$V] (found $FIRST)"; exit 1; }
 
-scripts/check.sh
+# The local check is the gate. Skip it when this exact commit already passed.
+if [ "$(cat "$(git rev-parse --git-dir)/townsquare-check-ok" 2>/dev/null)" = "$(git rev-parse HEAD)" ]; then
+  echo "✓ make check already passed for $(git rev-parse --short HEAD)"
+else
+  scripts/check.sh
+fi
+# GitHub CI runs after each push as a backstop; nothing waits for it. Say so if it caught something.
+if CI="$(gh run list --workflow ci.yml --branch master --status completed --limit 1 --json conclusion,headSha --jq '.[0].conclusion + " " + .[0].headSha' 2>/dev/null)" && [ "${CI%% *}" = "failure" ]; then
+  echo "! the last GitHub CI run (${CI#* }) failed on Windows or Linux: look before releasing (gh run list)"
+  [ -n "${CI_FAIL_OK:-}" ] || exit 1
+fi
 
 scripts/package.sh "$V"
 

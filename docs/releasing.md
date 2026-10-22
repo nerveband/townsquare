@@ -16,7 +16,9 @@ self-updates), so a mistake ships everywhere within hours. Follow the steps in o
 
 ## Release checklist
 
-1. **Pre-flight.** On `master`, clean tree, in sync with origin. `make check` passes.
+1. **Pre-flight.** On `master`, clean tree, in sync with origin. `make check` passes (run it on
+   the final commit, changelog included, so the release can reuse it). GitHub CI runs after
+   each push as a backstop; don't wait for it.
    No post due within 15 minutes (`bin/townsquare due`). Secrets present (both restore from
    1Password if missing, see below):
    - `~/.config/townsquare/release-signing.key` (or `TOWNSQUARE_SIGNING_KEY`)
@@ -30,7 +32,9 @@ self-updates), so a mistake ships everywhere within hours. Follow the steps in o
    running `serve` restarting into it). Breaking the updater strands every install.
 4. **Dry run.** `make release V=vX.Y.Z DRY=--dry-run`. It refuses when the version isn't newer
    than the latest release, the newest changelog section isn't `[vX.Y.Z]`, `[Unreleased]` isn't
-   empty, or a secret is missing. It then runs `make check` and builds everything into `dist/`.
+   empty, a secret is missing, or the last finished GitHub CI run failed (`CI_FAIL_OK=1` to
+   override after looking). It runs `make check` unless that exact commit already passed, then
+   builds everything into `dist/`.
 5. **Release.** `make release V=vX.Y.Z`: tags, pushes the tag, creates the GitHub release
    (notes from the changelog, marked latest), then runs `scripts/verify-release.sh`:
    - all 13 downloads attached;

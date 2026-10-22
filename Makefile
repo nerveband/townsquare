@@ -1,8 +1,11 @@
 # Common tasks. See AGENTS.md for the rules behind them.
-.PHONY: check build ui spec test deploy release verify-release package dev
+.PHONY: check check-fast build ui spec test deploy release verify-release package dev
 
-check:            ## everything CI would run
+check:            ## the full gate before a release (every platform's vet, all tests, UI, contract)
 	scripts/check.sh
+
+check-fast:       ## quick check while working: this system, changed packages only
+	scripts/check-fast.sh
 
 build:            ## bin/townsquare with version info
 	scripts/build.sh

@@ -8,11 +8,13 @@ step() { echo "• $*"; }
 step "gofmt"
 [ -z "$(gofmt -l cmd internal web tools *.go 2>/dev/null)" ] || fail "gofmt needed: $(gofmt -l cmd internal web tools *.go)"
 
-step "go vet (this system, then every release platform)"
-go vet ./...
+step "go vet (this system and every release platform, in parallel)"
+pids=()
+go vet ./... & pids+=($!)
 for t in windows/amd64 linux/amd64 linux/arm64 linux/arm darwin/amd64; do
-  GOOS="${t%/*}" GOARCH="${t#*/}" CGO_ENABLED=0 go vet ./... || fail "go vet failed for $t"
+  ( GOOS="${t%/*}" GOARCH="${t#*/}" CGO_ENABLED=0 go vet ./... || { echo "go vet failed for $t" >&2; exit 1; } ) & pids+=($!)
 done
+for p in "${pids[@]}"; do wait "$p" || fail "go vet failed (see above)"; done
 
 step "contract and CLI docs are generated and current"
 python3 tools/gen_openapi.py >/dev/null
@@ -36,4 +38,6 @@ fi
 step "every API route is in the web app too (parity)"
 python3 tools/parity.py || fail "see above: add the missing route to Handler() in server.go, or list it in tools/parity.py with a reason"
 
+# Remember that this exact commit passed, so `make release` doesn't run it all again.
+if [ -z "$(git status --porcelain)" ]; then git rev-parse HEAD > "$(git rev-parse --git-dir)/townsquare-check-ok"; fi
 echo "✓ all checks passed"

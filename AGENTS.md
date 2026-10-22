@@ -48,14 +48,16 @@ updates, restarts. A change is done when:
 8. **Every platform.** It works in the Mac app, the Windows exe, the Linux `.deb` (PC and
    Raspberry Pi) and the plain command line. OS-specific code comes in darwin, linux and windows
    versions (`_darwin.go`, `_linux.go`, `_windows.go`, or a declared fallback). `make check` vets
-   every release target; CI (`.github/workflows/ci.yml`) builds, tests and starts the program on
-   macOS, Windows and Linux x64/arm64 and must be green.
+   every release target. GitHub CI (`.github/workflows/ci.yml`) then builds, tests and starts the
+   program on macOS, Windows and Linux x64/arm64 as a backstop: nobody waits for it, but
+   `make release` refuses while the last finished run failed.
 9. **Every surface.** Desktop, tablet and phone layouts (screenshot check in demo mode); the
    API, so an agent can do it headless; a `townsquare` command when it is setup or upkeep
    (config, start at login, updates); the agent guide; the README when people see it.
 10. **Review before "done".** Re-read the whole diff against items 1 to 9, the safety rules
     below, secrets and personal data, and plain wording. Run `make check` (it also checks that
-    every v1 route has a web app route, `tools/parity.py`), push, and confirm CI is green.
+    every v1 route has a web app route, `tools/parity.py`) once, then push. Local `make check` is
+    the gate; don't wait for GitHub CI.
 
 Releases ship every platform together from one tag, on the owner's say-so, following
 `docs/releasing.md` in order. Never release one platform alone or skip a step.
@@ -142,4 +144,7 @@ takes names or ids, comma-separated; `posts delete --scope one` needs `--schedul
 - Changing or removing anything in `/api/v1`: read `docs/api-deprecation.md` first.
 - Cutting a release, deploying, or touching updates, packaging or the signing key: read
   `docs/releasing.md` and follow its checklist in order. Release only when the owner asks.
-- Before pushing, always: `make check`.
+- While working: `make check-fast` (this system, changed packages). Before a release:
+  `make check` once; `make release` skips it when that exact commit already passed.
+- Batch changes into one release per session unless a fix is urgent: each release costs a full
+  package, publish and verify.
