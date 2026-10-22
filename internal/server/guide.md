@@ -54,6 +54,9 @@ history entry, summary `undid: ...`). In `GET /changes` the reverted entry has `
   `GET /api/v1/targets?list=<id>`. Lists are read-only here: they change in WhatsApp.
   `pinned` on a target means it is pinned in WhatsApp (`?pinned=true` filters).
   `POST /targets/refresh` reloads chats, lists and pins.
+- **Unlink alerts (test feature, off by default):** setting `alert_unlink` = `"1"` makes
+  Townsquare message the owner's Telegram Saved Messages when WhatsApp ends the link. Needs
+  Telegram logged in. Turn on only when the owner asks.
 - **Platforms:** a target's `platform` is `whatsapp` or `telegram`. Telegram JIDs look like
   `tg:self` (Saved Messages, safe for tests), `tg:chat:<id>` or `tg:ch:<id>:<hash>`. One post may
   mix platforms. Formatting is written WhatsApp-style (`*bold*`) and converted for Telegram.

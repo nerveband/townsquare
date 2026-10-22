@@ -5425,9 +5425,12 @@
      },
      "send_delay": {
       "type": "string"
+     },
+     "alert_unlink": {
+      "type": "string"
      }
     },
-    "description": "All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope."
+    "description": "All values are strings. safe_mode is \"1\" or \"0\"; times are HH:MM; gaps in seconds; grace in minutes. Changing safe_mode needs admin scope. alert_unlink \"1\" (test feature, off by default) messages your Telegram Saved Messages when WhatsApp unlinks."
    },
    "Target": {
     "type": "object",

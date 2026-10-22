@@ -220,6 +220,9 @@ func (s *Server) Connect(ctx context.Context) error {
 			s.mu.Lock()
 			s.conn.WADown = time.Now()
 			s.mu.Unlock()
+			if _, out := evt.(*events.LoggedOut); out {
+				go s.alertUnlinked("WhatsApp")
+			}
 		case *events.Receipt, *events.Message:
 			go s.onWAStat(evt)
 		}
@@ -626,6 +629,7 @@ var editableSettings = map[string]string{
 	"auto_update":    "automatic updates",
 	"send_delay":     "undo-send pause",
 	"stats_people":   "who read it lists",
+	"alert_unlink":   "unlink alerts on Telegram",
 	"timezone":       "time zone", "safe_mode": "safe mode", "gap_min": "minimum gap", "gap_max": "maximum gap",
 	"daily_cap": "daily limit", "quiet_start": "quiet hours", "quiet_end": "quiet hours", "grace_min": "late-send grace",
 }
@@ -642,6 +646,10 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		label, ok := editableSettings[k]
 		if !ok {
 			fail(w, 400, fmt.Errorf("unknown setting %q", k))
+			return
+		}
+		if k == "alert_unlink" && v != "0" && v != "1" {
+			fail(w, 400, fmt.Errorf("alert_unlink is 1 (on) or 0 (off)"))
 			return
 		}
 		if k == "send_delay" && !contains([]string{"0", "30", "60", "120", "300"}, v) {

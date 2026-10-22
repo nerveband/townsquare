@@ -67,6 +67,7 @@ var defaults = map[string]string{
 	"stats_people":   "0",
 	"auto_update":    "1",
 	"send_delay":     "0",
+	"alert_unlink":   "0", // test feature: tell the owner on Telegram when WhatsApp unlinks
 }
 
 var defaultTags = [][2]string{

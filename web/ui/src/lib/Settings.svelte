@@ -153,6 +153,7 @@
     }
     updBusy = ''
   }
+  async function setAlert(on) { await act(api('PUT', '/api/settings', { alert_unlink: on ? '1' : '0' }), on ? 'You’ll get a Telegram message if WhatsApp unlinks' : 'Unlink alerts off') }
   async function setAutoUpd(on) { await act(api('PUT', '/api/settings', { auto_update: on ? '1' : '0' })); loadUpd() }
   async function setLogin(on) { try { auto = await api('PUT', '/api/autostart', { enabled: on }); toast(on ? 'Townsquare will start when you log in' : 'Townsquare won’t start at login') } catch (e) { toast(e.message) } }
   async function quitApp() { try { await api('POST', '/api/quit'); document.body.innerHTML = '<p style="font:16px system-ui;padding:40px">Townsquare stopped. Open the app again to restart it.</p>' } catch (e) { toast(e.message) } }
@@ -415,12 +416,14 @@
         <p class="muted meta">
           {#if app.connected && wa.connected_since}Connected since {when(wa.connected_since)}.{:else if wa.last_disconnect}Last connected {when(wa.last_disconnect)}; Townsquare reconnects on its own.{/if}
           {#if wa.last_sync}Chats loaded {ago(wa.last_sync)}: {wa.chats} chats, {wa.allowlisted} allowlisted.{/if}
-          Shows on your phone as the linked device “Townsquare”.
+          Shows on your phone under Linked devices as “Townsquare” (or “Chrome (Mac OS)” if you linked with a typed code).
         </p>
         <div class="row">
           <button class="btn" onclick={refreshTargets} disabled={refreshing || !app.connected}>{refreshing ? 'Loading…' : 'Refresh chats'}</button>
           <button class="btn" onclick={waTest} disabled={!app.connected}>Send test to Message yourself</button>
         </div>
+        <label class="ck"><input type="checkbox" checked={app.settings.alert_unlink === '1'} onchange={(e) => setAlert(e.target.checked)} /> Tell me on Telegram if WhatsApp unlinks <span class="muted">(test feature)</span></label>
+        {#if app.settings.alert_unlink === '1' && app.telegram !== 'ready'}<p class="muted meta">Log in to Telegram below, or the alert has nowhere to go.</p>{/if}
       {/if}
       {#if wa && !wa.linked && !app.demo}
         {@const ls = wa.link?.state}

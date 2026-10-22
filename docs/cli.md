@@ -675,6 +675,7 @@ townsquare settings get --fields timezone,quiet_start,quiet_end
 
 Update settings. `PATCH /api/v1/settings` · idempotent
 
+- `--alert-unlink` string 
 - `--auto-update` string 
 - `--daily-cap` string 
 - `--gap-max` string 

@@ -126,6 +126,9 @@ func (s *Server) openAccount(ctx context.Context, a store.Account) error {
 				x.mu.Lock()
 				x.connected, x.down = false, time.Now()
 				x.mu.Unlock()
+				if _, out := evt.(*events.LoggedOut); out {
+					go s.alertUnlinked(fmt.Sprintf("WhatsApp (%s)", a.Label))
+				}
 			case *events.Receipt, *events.Message:
 				go s.onWAStat(evt)
 			}

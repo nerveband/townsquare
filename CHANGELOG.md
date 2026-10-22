@@ -6,6 +6,19 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.11.0] - 2026-10-21
+
+### Added
+- **Hear about it when WhatsApp unlinks (test feature).** If WhatsApp ends the link, for example
+  after you remove Townsquare on your phone, Townsquare can send a message to your own Telegram
+  Saved Messages so you can link again before a post is due. Turn it on in Settings → Accounts →
+  WhatsApp: **Tell me on Telegram if WhatsApp unlinks**. It's off unless you turn it on, and it
+  needs Telegram logged in.
+
+### API changes
+- New setting `alert_unlink` (`"1"` or `"0"`, default `"0"`) in `GET`/`PATCH /settings`.
+  CLI: `townsquare settings update --alert-unlink 1`.
+
 ## [v0.10.1] - 2026-10-20
 
 ### Fixed
