@@ -6,6 +6,18 @@ Versions follow [Semantic Versioning](https://semver.org/). The REST API is vers
 
 ## [Unreleased]
 
+## [v0.12.2] - 2026-11-02
+
+### Changed
+- **Newer WhatsApp and Telegram connections.** Townsquare now uses the latest versions of the
+  parts that talk to WhatsApp and Telegram, plus the database, remote access and web app pieces.
+  For WhatsApp this means it backs off when WhatsApp says too many changes were made too fast,
+  reconnects by itself when WhatsApp stops answering while connecting, and understands the
+  newest message formats.
+- If linking WhatsApp fails, start the link again and use one way only: scan the QR code, or
+  type the code on your phone. Doing both in the same try can fail with "invalid device
+  identity HMAC".
+
 ## [v0.12.1] - 2026-10-22
 
 ### Changed
