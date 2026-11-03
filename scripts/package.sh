@@ -24,15 +24,15 @@ export TOWNSQUARE_TG_APP="$(tr -d '[:space:]' < "$TGAPP")"
 rm -rf dist && mkdir -p dist
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
-# Plain binaries, all platforms at once.
-pids=()
+# Plain binaries, one platform at a time: six cold builds at once (tailscale, gotd, whatsmeow per
+# platform) exhaust memory on a 16 GB Mac and stall for half an hour or more.
 for t in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 linux/arm windows/amd64; do
   os="${t%/*}"; arch="${t#*/}"; [ "$arch" = arm ] && arch=armv7
   ext=""; [ "$os" = windows ] && ext=".exe"
   ( if [ "$t" = linux/arm ]; then export GOARM=7; else unset GOARM; fi
-    scripts/build.sh "$V" "$t" "dist/townsquare-$V-$os-$arch$ext" >/dev/null ) & pids+=($!)
+    scripts/build.sh "$V" "$t" "dist/townsquare-$V-$os-$arch$ext" >/dev/null ) \
+    || { echo "✗ the $t build failed (see above)"; exit 1; }
 done
-for p in "${pids[@]}"; do wait "$p" || { echo "✗ a build failed (see above)"; exit 1; }; done
 echo "✓ binaries"
 
 # Mac app: a tiny launcher script starts the server in the background and exits,
